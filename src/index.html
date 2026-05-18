@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 安全修复 [SEC-004]: 添加 Content Security Policy 限制资源加载来源 -->
+<!-- 注意 [ELEC-011]: unsafe-eval 是 TailwindCSS CDN JIT 编译所必需的。
+     生产环境建议将 TailwindCSS 构建为本地 CSS 文件以移除 unsafe-eval。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.crossref.org https://api.semanticscholar.org https://api.openalex.org https://github.com; img-src 'self' data: blob:;">
+<title>ScholarFlow - Literature Reading Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- 安全修复 [SEC-005]: 为 ECharts CDN 资源添加 SRI 完整性校验，防止 CDN 被劫持后注入恶意代码 -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" integrity="sha384-o5uz97et3bErHvpKfD4Jz4n0JfhJDWABFuF4NP+iEEDxE1VwMWJ19QGR0lqFZnr6" crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: ['class', '[data-theme="dark"]'],
+  theme: {
+    extend: {
+      colors: {
+        ink: { 50:'#faf9f7',100:'#f0ede8',200:'#e0dbd2',300:'#c9c1b4',400:'#a89d8c',500:'#8a7e6b',600:'#6e6354',700:'#564c40',800:'#3d362d',900:'#2a251e',950:'#1a1610' },
+        accent: { 50:'#f0f7ff',100:'#dfeeff',200:'#b8dbff',300:'#78bcff',400:'#3399ff',500:'#0077e6',600:'#005cb8',700:'#004a99',800:'#003d7a',900:'#002f5c' },
+        ruby: { 400:'#e6556f',500:'#d4354f',600:'#b82940' },
+        jade: { 400:'#4ecb8d',500:'#2fb872',600:'#25965d' },
+        amber: { 400:'#f0b429',500:'#e09800',600:'#c17f00' },
+      },
+      fontFamily: {
+        'display': ['"Playfair Display"', '"Noto Serif SC"', 'Georgia', 'serif'],
+        'body': ['"Plus Jakarta Sans"', '"Noto Serif SC"', 'system-ui', 'sans-serif'],
+        'mono': ['"JetBrains Mono"', 'monospace'],
+      }
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<!-- APP LAYOUT -->
+<div class="app-layout" id="app">
+
+  <!-- MOBILE OVERLAY -->
+  <div class="mobile-overlay fixed inset-0 bg-black/30 z-30 hidden" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Sidebar content rendered by JS -->
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <!-- Top Bar -->
+    <div id="topbar" style="padding:12px 24px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <!-- Topbar content rendered by JS -->
+    </div>
+
+    <!-- PAGE: DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <!-- Dashboard content filled by JS -->
+    </div>
+
+    <!-- PAGE: LIBRARY -->
+    <div class="page" id="page-library">
+      <!-- Library content filled by JS -->
+    </div>
+
+    <!-- PAGE: DETAIL -->
+    <div class="page" id="page-detail">
+      <!-- Detail content filled by JS -->
+    </div>
+
+    <!-- PAGE: NOTES -->
+    <div class="page" id="page-notes">
+      <!-- Notes content filled by JS -->
+    </div>
+
+    <!-- PAGE: STATS -->
+    <div class="page" id="page-stats">
+      <!-- Stats content filled by JS -->
+    </div>
+
+    <!-- PAGE: SETTINGS -->
+    <div class="page" id="page-settings">
+      <!-- Settings content filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ADD LITERATURE MODAL -->
+<div class="modal-overlay" id="addLitModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 style="font-family:'Crimson Pro',serif;font-size:20px;font-weight:600;" id="addLitModalTitle">Add Literature</h3>
+      <button class="btn-icon" onclick="closeModal('addLitModal')" style="border:none;"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="addLitForm">
+      <!-- Form filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- NOTE EDIT MODAL -->
+<div class="modal-overlay" id="noteEditModal">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <h3 style="font-family:'Crimson Pro',serif;font-size:20px;font-weight:600;" id="noteModalTitle">Edit Note</h3>
+      <button class="btn-icon" onclick="closeModal('noteEditModal')" style="border:none;"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="noteEditForm">
+      <!-- Note form filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH RESULTS DROPDOWN -->
+<div id="searchResults" class="search-results-dropdown" style="display:none;"></div>
+
+<!--
+============================================================
+SCRIPT MODULES - 加载顺序很重要！
+============================================================
+
+加载顺序说明：
+1. data.js     - 基础数据层（常量、数据存储、工具函数）
+2. i18n.js     - 国际化系统
+3. utils.js    - 工具函数
+4. app.js      - 应用核心（导航、状态、搜索）
+5. pages/*     - 页面渲染模块
+6. crud.js     - 数据操作模块
+7. pdf.js      - PDF处理模块
+
+每个模块通过 window 对象暴露全局变量和函数，
+后续模块可以依赖前面模块提供的功能。
+-->
+<script src="./js/data.js"></script>
+<script src="./js/i18n.js"></script>
+<script src="./js/utils.js"></script>
+<script src="./js/app.js"></script>
+
+<!-- 页面渲染模块 -->
+<script src="./js/pages/dashboard.js"></script>
+<script src="./js/pages/library.js"></script>
+<script src="./js/pages/detail.js"></script>
+<script src="./js/pages/notes.js"></script>
+<script src="./js/pages/stats.js"></script>
+<script src="./js/pages/settings.js"></script>
+
+<!-- CRUD操作和数据管理模块 -->
+<script src="./js/crud.js"></script>
+
+<!-- PDF阅读器模块 -->
+<script src="./js/pdf.js"></script>
+
+<!-- 自动更新模块 -->
+<script src="./js/updater.js"></script>
+
+<!-- 初始化入口 - 在所有模块加载完成后执行 -->
+<script>
+/**
+ * ============================================================
+ * ScholarFlow - Application Initialization
+ * ============================================================
+ * 
+ * 应用程序初始化流程：
+ * 1. 从持久化存储加载数据
+ * 2. 渲染侧边栏和顶部栏
+ * 3. 切换到仪表盘页面
+ */
+(async () => {
+  try {
+    // 初始化当前用户（获取用户 ID 用于数据隔离）
+    const currentUser = await initCurrentUser();
+    
+    // 加载保存的数据
+    await loadData();
+    
+    // 初始化演示数据（首次运行时使用）
+    initDemoData();
+    
+    // 渲染界面
+    renderSidebar();
+    renderTopbar();
+    switchPage('dashboard');
+
+    // 更新侧边栏用户显示（使用实际用户数据）
+    if (typeof updateSidebarUser === 'function') updateSidebarUser();
+
+    // 初始化自动更新 UI（监听主进程更新事件）
+    if (typeof initAutoUpdaterUI === 'function') initAutoUpdaterUI();
+    
+    console.log('[ScholarFlow] 应用初始化完成');
+  } catch (error) {
+    console.error('[ScholarFlow] 初始化失败:', error);
+  }
+})();
+</script>
+
+</body>
+</html>
