@@ -205,7 +205,26 @@ function showErrorModal(message, code) {
 
 window.dismissUpdateModal = function () {
   if (updateOverlayEl) { updateOverlayEl.remove(); updateOverlayEl = null; }
+  // 关闭弹窗后，重新获取版本号并更新显示
+  refreshVersionDisplay();
 };
+
+/**
+ * 重新获取并刷新版本号显示
+ */
+async function refreshVersionDisplay() {
+  try {
+    if (window.electronAPI?.app?.getVersion) {
+      const version = await window.electronAPI.app.getVersion();
+      const versionEl = document.getElementById('currentVersionDisplay');
+      if (versionEl) {
+        versionEl.textContent = 'v' + version;
+      }
+    }
+  } catch (e) {
+    console.log('[AutoUpdateUI] 刷新版本号失败');
+  }
+}
 
 window.installAndRestart = async function () {
   if (!window.electronAPI?.updater) return;
