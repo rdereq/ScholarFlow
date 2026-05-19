@@ -7,6 +7,21 @@
  * 依赖: window.electronAPI.updater (preload 暴露)
  */
 
+/**
+ * HTML 转义函数（本地实现，避免依赖加载顺序）
+ * @param {string} str
+ * @returns {string}
+ */
+function _escapeHtml(str) {
+  if (typeof str !== 'string') return String(str || '');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ============================================================
 // 状态管理
 // ============================================================
@@ -125,17 +140,17 @@ function showUpdateComplete(version, releaseNotes) {
       <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#25965d" stroke-width="2" style="margin-bottom:16px;">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
       </svg>
-      <h3 style="font-family:'Playfair Display',serif;font-size:20px;color:var(--text-primary);margin-bottom:8px;">${t('update_ready_title') || 'Update Ready'}</h3>
+      <h3 style="font-family:'Playfair Display',serif;font-size:20px;color:var(--text-primary);margin-bottom:8px;">${(typeof t === 'function' ? t('update_ready_title') : null) || 'Update Ready'}</h3>
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:6px;">
-        ${t('update_ready_version') || 'Version'} <strong>v${version}</strong> ${t('update_ready_downloaded') || 'has been downloaded'}
+        ${(typeof t === 'function' ? t('update_ready_version') : null) || 'Version'} <strong>v${version}</strong> ${(typeof t === 'function' ? t('update_ready_downloaded') : null) || 'has been downloaded'}
       </p>
-      ${releaseNotes ? `<div style="text-align:left;background:var(--bg-page);border-radius:8px;padding:12px;margin-top:12px;max-height:120px;overflow-y:auto;"><p style="font-size:11px;color:var(--text-secondary);margin:0;line-height:1.6;">${escapeHtml(releaseNotes).replace(/\n/g, '<br>')}</p></div>` : ''}
+      ${releaseNotes ? `<div style="text-align:left;background:var(--bg-page);border-radius:8px;padding:12px;margin-top:12px;max-height:120px;overflow-y:auto;"><p style="font-size:11px;color:var(--text-secondary);margin:0;line-height:1.6;">${_escapeHtml(releaseNotes).replace(/\n/g, '<br>')}</p></div>` : ''}
       <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;">
         <button onclick="dismissUpdateModal()" style="padding:8px 20px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:13px;font-family:Plus Jakarta Sans,sans-serif;">
-          ${t('update_later') || 'Later'}
+          ${(typeof t === 'function' ? t('update_later') : null) || 'Later'}
         </button>
         <button onclick="installAndRestart()" style="padding:8px 24px;border:none;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:Plus Jakarta Sans,sans-serif;">
-          ${t('update_restart') || 'Restart & Install'}
+          ${(typeof t === 'function' ? t('update_restart') : null) || 'Restart & Install'}
         </button>
       </div>
     </div>`;
@@ -161,14 +176,14 @@ function showErrorModal(message, code) {
   overlay.innerHTML = `
     <div style="background:#fef2f2;border-left:3px solid #d4354f;border-radius:0 8px 8px 0;padding:14px 18px;max-width:480px;width:90%;box-shadow:var(--shadow-md);">
       <p style="font-size:13px;font-weight:600;color:#b82940;margin:0 0 6px 0;font-family:'DM Sans',sans-serif;">
-        ${t('update_failed') || 'Update Failed'}
+        ${(typeof t === 'function' ? t('update_failed') : null) || 'Update Failed'}
       </p>
       <p style="font-size:12px;color:var(--text-secondary);margin:0;line-height:1.5;">
-        ${escapeHtml(message || t('update_unknown_error') || 'An unknown error occurred during the update process.')}
-        ${code !== 'UNKNOWN' ? `<code style="background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px;font-size:11px;">[${escapeHtml(code)}]</code>` : ''}
+        ${_escapeHtml(message || (typeof t === 'function' ? t('update_unknown_error') : null) || 'An unknown error occurred during the update process.')}
+        ${code !== 'UNKNOWN' ? `<code style="background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px;font-size:11px;">[${_escapeHtml(code)}]</code>` : ''}
       </p>
       <button onclick="this.parentElement.parentElement.remove()" style="margin-top:10px;padding:4px 14px;border:1px solid #fecaca;border-radius:6px;background:transparent;color:#b82940;cursor:pointer;font-size:11px;font-family:Plus Jakarta Sans,sans-serif;">
-        ${t('close') || 'Close'}
+        ${(typeof t === 'function' ? t('close') : null) || 'Close'}
       </button>
     </div>`;
 
@@ -216,15 +231,17 @@ function handleUpdaterStatus(statusMsg) {
     case 'checking':
       updateState.status = 'checking';
       updateState.errorMessage = '';
-      showProgress(true, 0, t('checking_for_update') || 'Checking for updates...');
+      showProgress(true, 0, (typeof t === 'function' ? t('checking_for_update') : null) || 'Checking for updates...');
       break;
 
     case 'available':
       updateState.status = 'downloading';
       updateState.version = data.version;
       updateState.releaseNotes = data.releaseNotes;
+      const downloadingText = (typeof t === 'function' ? t('downloading_update') : null) || 'Downloading';
+      const fromVersionText = (typeof t === 'function' ? t('from_version') : null) || 'from';
       showProgress(true, 0,
-        `${t('downloading_update') || 'Downloading'} v${data.version}${data.currentVersion ? ` (${t('from_version') || 'from'} v${data.currentVersion})` : ''}`
+        `${downloadingText} v${data.version}${data.currentVersion ? ` (${fromVersionText} v${data.currentVersion})` : ''}`
       );
       break;
 
@@ -275,7 +292,15 @@ function initAutoUpdaterUI() {
   // 监听主进程的更新事件
   window.electronAPI.updater.onStatusChange(handleUpdaterStatus);
 
-  console.log('[AutoUpdateUI] 初始化完成');
+  console.log('[AutoUpdateUI] 初始化完成，开始监听更新事件');
+  
+  // 调试：立即检查一次更新状态
+  window.electronAPI.updater.checkNow().then(result => {
+    console.log('[AutoUpdateUI] 手动检查结果:', result);
+  }).catch(err => {
+    console.log('[AutoUpdateUI] 手动检查失败:', err);
+  });
+  
   return true;
 }
 
