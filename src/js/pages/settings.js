@@ -96,7 +96,7 @@ function renderSettingsPage() {
               <div style="display:flex;align-items:center;justify-content:space-between;">
                 <div>
                   <div style="font-size:13px;font-weight:500;color:var(--text-primary);">${escapeHtml(t('currentVersion') || '当前版本')}</div>
-                  <div style="font-size:12px;color:var(--text-muted);">v1.0.0</div>
+                  <div id="currentVersionDisplay" style="font-size:12px;color:var(--text-muted);">v1.0.0</div>
                 </div>
                 <button class="btn btn-primary" id="checkUpdateBtn" style="min-width:100px;">
                   ${escapeHtml(t('checkUpdate') || '检查更新')}
@@ -121,6 +121,26 @@ function renderSettingsPage() {
 
   // 渲染标签列表
   renderTagsList();
+
+  // 动态获取并显示当前版本号
+  loadAndDisplayVersion();
+}
+
+/**
+ * 加载并显示当前应用版本号
+ */
+async function loadAndDisplayVersion() {
+  const versionEl = document.getElementById('currentVersionDisplay');
+  if (!versionEl) return;
+
+  try {
+    if (window.electronAPI?.app?.getVersion) {
+      const version = await window.electronAPI.app.getVersion();
+      versionEl.textContent = 'v' + version;
+    }
+  } catch (e) {
+    console.log('[Settings] 获取版本号失败');
+  }
 }
 
 // ============================================================

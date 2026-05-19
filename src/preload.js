@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('window:close'),
   // 文件选择（用于PDF上传）
   selectFile: (filters) => ipcRenderer.invoke('dialog:selectFile', filters),
+  // 应用信息
+  app: {
+    getVersion: () => ipcRenderer.invoke('app:getVersion')
+  },
   // 自动更新
   updater: {
     /** 监听更新状态变化 */

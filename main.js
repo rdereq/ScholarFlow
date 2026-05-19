@@ -278,6 +278,11 @@ function initAutoUpdater() {
   }, 30 * 60 * 1000);
 }
 
+// IPC: 获取应用版本号
+ipcMain.handle('app:getVersion', async () => {
+  return app.getVersion();
+});
+
 // IPC: 手动触发检查更新
 ipcMain.handle('updater:checkNow', async () => {
   if (!app.isPackaged) return { status: 'dev_mode' };
