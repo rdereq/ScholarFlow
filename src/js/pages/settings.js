@@ -110,11 +110,7 @@ function renderSettingsPage() {
                 <select id="updateSourceSelect" class="input" style="margin-bottom:8px;">
                   <option value="github">GitHub（需科学上网）</option>
                   <option value="mirror">GitHub 镜像（推荐国内用户）</option>
-                  <option value="custom">自定义服务器</option>
                 </select>
-                <div id="customUrlArea" style="display:none;">
-                  <input type="text" id="customUpdateUrl" class="input" placeholder="https://your-server.com/updates" style="margin-bottom:8px;">
-                </div>
                 <div id="updateSourceDesc" style="font-size:11px;color:var(--text-muted);"></div>
               </div>
               
@@ -221,8 +217,6 @@ function attachSettingsListeners() {
  */
 async function initUpdateSourceSelector() {
   const selectEl = document.getElementById('updateSourceSelect');
-  const customUrlArea = document.getElementById('customUrlArea');
-  const customUrlInput = document.getElementById('customUpdateUrl');
   const descEl = document.getElementById('updateSourceDesc');
 
   if (!selectEl || !window.electronAPI?.updater?.getSources) return;
@@ -234,12 +228,6 @@ async function initUpdateSourceSelector() {
     // 设置当前选中的更新源
     selectEl.value = current.source;
 
-    // 显示自定义 URL 输入框（如果选择了自定义）
-    if (current.source === 'custom' && customUrlArea) {
-      customUrlArea.style.display = 'block';
-      if (customUrlInput) customUrlInput.value = current.customUrl || '';
-    }
-
     // 更新描述
     updateSourceDescription(current.source, sources, descEl);
 
@@ -247,27 +235,12 @@ async function initUpdateSourceSelector() {
     selectEl.addEventListener('change', async () => {
       const newSource = selectEl.value;
 
-      // 显示/隐藏自定义 URL 输入框
-      if (customUrlArea) {
-        customUrlArea.style.display = newSource === 'custom' ? 'block' : 'none';
-      }
-
       // 更新描述
       updateSourceDescription(newSource, sources, descEl);
 
       // 保存设置
-      const customUrl = newSource === 'custom' && customUrlInput ? customUrlInput.value : '';
-      await window.electronAPI.updater.setSource(newSource, customUrl);
+      await window.electronAPI.updater.setSource(newSource);
     });
-
-    // 监听自定义 URL 输入
-    if (customUrlInput) {
-      customUrlInput.addEventListener('change', async () => {
-        if (selectEl.value === 'custom') {
-          await window.electronAPI.updater.setSource('custom', customUrlInput.value);
-        }
-      });
-    }
   } catch (e) {
     console.log('[Settings] 初始化更新源选择器失败:', e);
   }

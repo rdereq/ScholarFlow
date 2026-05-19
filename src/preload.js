@@ -33,7 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     /** 获取更新源列表 */
     getSources: () => ipcRenderer.invoke('updater:getSources'),
     /** 设置更新源 */
-    setSource: (source, customUrl) => ipcRenderer.invoke('updater:setSource', source, customUrl)
+    setSource: (source) => ipcRenderer.invoke('updater:setSource', source)
   },
   // 用户管理
   user: {

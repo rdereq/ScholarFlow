@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 const { autoUpdater } = require('electron-updater');
+const https = require('https');
 
 // 注意 [ELEC-008]: 当前未启用加密。如果未来存储敏感数据（如 API Key），需添加 encryptionKey
 // const store = new Store({ encryptionKey: '...' });
@@ -198,12 +199,17 @@ function initAutoUpdater() {
     return;
   }
 
-  // 配置更新源（支持多源）
-  configureAutoUpdaterSource();
-
-  autoUpdater.autoDownload = true;        // 发现更新后自动下载
-  autoUpdater.autoInstallOnAppQuit = true; // 退出时自动安装（备用方案）
-  autoUpdater.allowPrerelease = false;     // 不接受预发布版本
+  // 配置更新源（支持多源，异步获取最新 tag）
+  configureAutoUpdaterSource().then(() => {
+    autoUpdater.autoDownload = true;        // 发现更新后自动下载
+    autoUpdater.autoInstallOnAppQuit = true; // 退出时自动安装（备用方案）
+    autoUpdater.allowPrerelease = false;     // 不接受预发布版本
+  }).catch((e) => {
+    console.error('[AutoUpdate] 配置更新源失败:', e.message);
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.allowPrerelease = false;
+  });
 
   // ---- 事件监听 ----
 
@@ -306,10 +312,6 @@ const UPDATE_SOURCES = {
     name: 'GitHub 镜像',
     url: 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download',
     description: 'GitHub 镜像加速（推荐国内用户）'
-  },
-  custom: {
-    name: '自定义服务器',
-    description: '使用自建更新服务器'
   }
 };
 
@@ -318,10 +320,8 @@ const UPDATE_SOURCES = {
  */
 function getUpdateSourceConfig() {
   const savedSource = store.get('updateSource') || 'github';
-  const customUrl = store.get('customUpdateUrl') || '';
   return {
     source: savedSource,
-    customUrl: customUrl,
     config: UPDATE_SOURCES[savedSource] || UPDATE_SOURCES.github
   };
 }
@@ -329,14 +329,11 @@ function getUpdateSourceConfig() {
 /**
  * 设置更新源
  */
-function setUpdateSourceConfig(source, customUrl = '') {
+function setUpdateSourceConfig(source) {
   if (!UPDATE_SOURCES[source]) {
     throw new Error('Invalid update source');
   }
   store.set('updateSource', source);
-  if (customUrl) {
-    store.set('customUpdateUrl', customUrl);
-  }
 }
 
 // IPC: 获取更新源列表
@@ -348,9 +345,9 @@ ipcMain.handle('updater:getSources', async () => {
 });
 
 // IPC: 设置更新源
-ipcMain.handle('updater:setSource', async (_event, source, customUrl) => {
+ipcMain.handle('updater:setSource', async (_event, source) => {
   try {
-    setUpdateSourceConfig(source, customUrl);
+    setUpdateSourceConfig(source);
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
@@ -358,11 +355,61 @@ ipcMain.handle('updater:setSource', async (_event, source, customUrl) => {
 });
 
 /**
+ * 通过 GitHub API 获取最新 release tag
+ * @returns {Promise<string|null>}
+ */
+function fetchLatestReleaseTag() {
+  return new Promise((resolve, reject) => {
+    const url = 'https://api.github.com/repos/rdereq/ScholarFlow/releases/latest';
+    const options = {
+      headers: {
+        'User-Agent': 'ScholarFlow-Updater',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      timeout: 15000
+    };
+
+    // 支持通过代理访问
+    const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY;
+    const httpModule = proxyUrl ? require('https') : https;
+
+    const req = https.get(url, options, (res) => {
+      if (res.statusCode === 200) {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            resolve(json.tag_name || null);
+          } catch (e) {
+            reject(new Error('Failed to parse GitHub API response'));
+          }
+        });
+      } else if (res.statusCode === 404) {
+        // 没有发布版本
+        resolve(null);
+      } else {
+        reject(new Error(`GitHub API returned status ${res.statusCode}`));
+      }
+    });
+
+    req.on('error', (e) => {
+      reject(e);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('GitHub API request timed out'));
+    });
+  });
+}
+
+/**
  * 配置 autoUpdater 的更新源
  */
-function configureAutoUpdaterSource() {
-  const { source, customUrl } = getUpdateSourceConfig();
-  
+async function configureAutoUpdaterSource() {
+  const { source } = getUpdateSourceConfig();
+
   if (source === 'github') {
     // 使用默认的 GitHub 配置（从 app-update.yml 读取）
     autoUpdater.setFeedURL({
@@ -372,19 +419,32 @@ function configureAutoUpdaterSource() {
     });
     console.log('[AutoUpdate] 使用 GitHub 更新源');
   } else if (source === 'mirror') {
-    // 使用镜像源
-    autoUpdater.setFeedURL({
-      provider: 'generic',
-      url: 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download'
-    });
-    console.log('[AutoUpdate] 使用 GitHub 镜像更新源');
-  } else if (source === 'custom' && customUrl) {
-    // 使用自定义服务器
-    autoUpdater.setFeedURL({
-      provider: 'generic',
-      url: customUrl
-    });
-    console.log('[AutoUpdate] 使用自定义更新源:', customUrl);
+    // 使用镜像源：先获取最新 tag，再拼接完整 URL
+    try {
+      const tag = await fetchLatestReleaseTag();
+      if (tag) {
+        const mirrorUrl = 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download/' + tag;
+        autoUpdater.setFeedURL({
+          provider: 'generic',
+          url: mirrorUrl
+        });
+        console.log('[AutoUpdate] 使用 GitHub 镜像更新源, tag:', tag);
+      } else {
+        console.log('[AutoUpdate] 未找到发布版本，回退到 GitHub 源');
+        autoUpdater.setFeedURL({
+          provider: 'github',
+          owner: 'rdereq',
+          repo: 'ScholarFlow'
+        });
+      }
+    } catch (e) {
+      console.error('[AutoUpdate] 获取最新版本失败，回退到 GitHub 源:', e.message);
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: 'rdereq',
+        repo: 'ScholarFlow'
+      });
+    }
   }
 }
 
@@ -421,7 +481,7 @@ ipcMain.handle('updater:checkNow', async () => {
   }
   try {
     // 重新配置更新源（用户可能更改了设置）
-    configureAutoUpdaterSource();
+    await configureAutoUpdaterSource();
     
     const result = await autoUpdater.checkForUpdates();
     const currentVersion = app.getVersion();
