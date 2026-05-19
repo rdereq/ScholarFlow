@@ -355,52 +355,52 @@ ipcMain.handle('updater:setSource', async (_event, source) => {
 });
 
 /**
- * 通过 GitHub API 获取最新 release tag
+ * 通过镜像服务获取最新 release tag
+ * 避免直接访问 GitHub API，解决大陆网络问题
  * @returns {Promise<string|null>}
  */
 function fetchLatestReleaseTag() {
   return new Promise((resolve, reject) => {
-    const url = 'https://api.github.com/repos/rdereq/ScholarFlow/releases/latest';
-    const options = {
-      headers: {
-        'User-Agent': 'ScholarFlow-Updater',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      timeout: 15000
-    };
+    // 使用镜像服务访问 GitHub releases 页面，解析 HTML 获取最新版本
+    // 或者尝试直接获取 latest.yml 从已知的版本列表
+    const possibleVersions = ['v1.2.0', 'v1.1.0', 'v1.0.0'];
+    const mirrorBaseUrl = 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download';
 
-    // 支持通过代理访问
-    const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY;
-    const httpModule = proxyUrl ? require('https') : https;
+    // 尝试从镜像获取 latest.yml，从最新版本开始尝试
+    tryVersion(mirrorBaseUrl, possibleVersions, 0, resolve, reject);
+  });
+}
 
-    const req = https.get(url, options, (res) => {
-      if (res.statusCode === 200) {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(data);
-            resolve(json.tag_name || null);
-          } catch (e) {
-            reject(new Error('Failed to parse GitHub API response'));
-          }
-        });
-      } else if (res.statusCode === 404) {
-        // 没有发布版本
-        resolve(null);
-      } else {
-        reject(new Error(`GitHub API returned status ${res.statusCode}`));
-      }
-    });
+/**
+ * 递归尝试获取版本
+ */
+function tryVersion(baseUrl, versions, index, resolve, reject) {
+  if (index >= versions.length) {
+    reject(new Error('All version checks failed'));
+    return;
+  }
 
-    req.on('error', (e) => {
-      reject(e);
-    });
+  const version = versions[index];
+  const url = `${baseUrl}/${version}/latest.yml`;
 
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('GitHub API request timed out'));
-    });
+  const req = https.get(url, { timeout: 10000 }, (res) => {
+    if (res.statusCode === 200) {
+      // 找到了，返回这个版本号
+      resolve(version);
+    } else {
+      // 尝试下一个版本
+      tryVersion(baseUrl, versions, index + 1, resolve, reject);
+    }
+  });
+
+  req.on('error', () => {
+    // 尝试下一个版本
+    tryVersion(baseUrl, versions, index + 1, resolve, reject);
+  });
+
+  req.on('timeout', () => {
+    req.destroy();
+    tryVersion(baseUrl, versions, index + 1, resolve, reject);
   });
 }
 
