@@ -283,6 +283,29 @@ ipcMain.handle('app:getVersion', async () => {
   return app.getVersion();
 });
 
+// 比较版本号，判断是否有新版本
+function isNewerVersion(current, latest) {
+  const parseVersion = (v) => {
+    // 移除 'v' 前缀
+    const versionStr = String(v).replace(/^v/, '');
+    // 解析为数字数组 [major, minor, patch]
+    const parts = versionStr.split('.').map(p => parseInt(p, 10) || 0);
+    return parts;
+  };
+
+  const currentParts = parseVersion(current);
+  const latestParts = parseVersion(latest);
+
+  // 比较主版本
+  if (latestParts[0] > (currentParts[0] || 0)) return true;
+  // 比较次版本
+  if (latestParts[1] > (currentParts[1] || 0)) return true;
+  // 比较补丁版本
+  if (latestParts[2] > (currentParts[2] || 0)) return true;
+
+  return false;
+}
+
 // IPC: 手动触发检查更新
 ipcMain.handle('updater:checkNow', async () => {
   if (!app.isPackaged) return { status: 'dev_mode' };
@@ -293,10 +316,23 @@ ipcMain.handle('updater:checkNow', async () => {
   }
   try {
     const result = await autoUpdater.checkForUpdates();
-    return {
-      status: result.updateInfo ? 'checked' : 'not-available',
-      version: result.updateInfo?.version || app.getVersion()
-    };
+    const currentVersion = app.getVersion();
+    const latestVersion = result.updateInfo?.version;
+
+    // 比较版本，确认是否有真正的新版本
+    if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+      return {
+        status: 'checked',
+        version: latestVersion,
+        currentVersion: currentVersion
+      };
+    } else {
+      return {
+        status: 'not-available',
+        version: currentVersion,
+        currentVersion: currentVersion
+      };
+    }
   } catch (e) {
     return { status: 'error', message: e.message };
   }

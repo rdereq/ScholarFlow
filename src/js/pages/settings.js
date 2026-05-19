@@ -355,13 +355,13 @@ async function checkForUpdate() {
 
   try {
     const result = await window.electronAPI.updater.checkNow();
-    
+
     if (result.status === 'dev_mode') {
       if (statusArea) statusArea.textContent = t('updateDevMode') || '开发模式无法检查更新';
     } else if (result.status === 'checked') {
       if (statusArea) statusArea.textContent = (t('updateFound') || '发现新版本: ') + 'v' + result.version;
     } else if (result.status === 'not-available') {
-      if (statusArea) statusArea.textContent = t('updateNotAvailable') || '已是最新版本';
+      if (statusArea) statusArea.textContent = t('updateAlreadyLatest') || '已是最新版本 v' + result.version;
     } else if (result.status === 'error') {
       if (statusArea) statusArea.textContent = (t('updateCheckFailed') || '检查失败: ') + result.message;
     }
