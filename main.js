@@ -198,6 +198,9 @@ function initAutoUpdater() {
     return;
   }
 
+  // 配置更新源（支持多源）
+  configureAutoUpdaterSource();
+
   autoUpdater.autoDownload = true;        // 发现更新后自动下载
   autoUpdater.autoInstallOnAppQuit = true; // 退出时自动安装（备用方案）
   autoUpdater.allowPrerelease = false;     // 不接受预发布版本
@@ -283,6 +286,108 @@ ipcMain.handle('app:getVersion', async () => {
   return app.getVersion();
 });
 
+// ============================================================
+// 更新源配置
+// ============================================================
+
+/**
+ * 预设的更新源
+ * 用户可以选择不同的更新源来解决网络问题
+ */
+const UPDATE_SOURCES = {
+  github: {
+    name: 'GitHub',
+    provider: 'github',
+    owner: 'rdereq',
+    repo: 'ScholarFlow',
+    description: 'GitHub 官方源（需科学上网）'
+  },
+  mirror: {
+    name: 'GitHub 镜像',
+    url: 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download',
+    description: 'GitHub 镜像加速（推荐国内用户）'
+  },
+  custom: {
+    name: '自定义服务器',
+    description: '使用自建更新服务器'
+  }
+};
+
+/**
+ * 获取当前更新源配置
+ */
+function getUpdateSourceConfig() {
+  const savedSource = store.get('updateSource') || 'github';
+  const customUrl = store.get('customUpdateUrl') || '';
+  return {
+    source: savedSource,
+    customUrl: customUrl,
+    config: UPDATE_SOURCES[savedSource] || UPDATE_SOURCES.github
+  };
+}
+
+/**
+ * 设置更新源
+ */
+function setUpdateSourceConfig(source, customUrl = '') {
+  if (!UPDATE_SOURCES[source]) {
+    throw new Error('Invalid update source');
+  }
+  store.set('updateSource', source);
+  if (customUrl) {
+    store.set('customUpdateUrl', customUrl);
+  }
+}
+
+// IPC: 获取更新源列表
+ipcMain.handle('updater:getSources', async () => {
+  return {
+    sources: UPDATE_SOURCES,
+    current: getUpdateSourceConfig()
+  };
+});
+
+// IPC: 设置更新源
+ipcMain.handle('updater:setSource', async (_event, source, customUrl) => {
+  try {
+    setUpdateSourceConfig(source, customUrl);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+/**
+ * 配置 autoUpdater 的更新源
+ */
+function configureAutoUpdaterSource() {
+  const { source, customUrl } = getUpdateSourceConfig();
+  
+  if (source === 'github') {
+    // 使用默认的 GitHub 配置（从 app-update.yml 读取）
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'rdereq',
+      repo: 'ScholarFlow'
+    });
+    console.log('[AutoUpdate] 使用 GitHub 更新源');
+  } else if (source === 'mirror') {
+    // 使用镜像源
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download'
+    });
+    console.log('[AutoUpdate] 使用 GitHub 镜像更新源');
+  } else if (source === 'custom' && customUrl) {
+    // 使用自定义服务器
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: customUrl
+    });
+    console.log('[AutoUpdate] 使用自定义更新源:', customUrl);
+  }
+}
+
 // 比较版本号，判断是否有新版本
 function isNewerVersion(current, latest) {
   const parseVersion = (v) => {
@@ -315,6 +420,9 @@ ipcMain.handle('updater:checkNow', async () => {
     return { status: 'error', message: 'app-update.yml not found. Please use the installer version for auto-updates.' };
   }
   try {
+    // 重新配置更新源（用户可能更改了设置）
+    configureAutoUpdaterSource();
+    
     const result = await autoUpdater.checkForUpdates();
     const currentVersion = app.getVersion();
     const latestVersion = result.updateInfo?.version;

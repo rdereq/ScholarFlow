@@ -29,7 +29,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     /** 手动检查更新 */
     checkNow: () => ipcRenderer.invoke('updater:checkNow'),
     /** 立即安装并重启 */
-    installAndRestart: () => ipcRenderer.invoke('updater:installAndRestart')
+    installAndRestart: () => ipcRenderer.invoke('updater:installAndRestart'),
+    /** 获取更新源列表 */
+    getSources: () => ipcRenderer.invoke('updater:getSources'),
+    /** 设置更新源 */
+    setSource: (source, customUrl) => ipcRenderer.invoke('updater:setSource', source, customUrl)
   },
   // 用户管理
   user: {

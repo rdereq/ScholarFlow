@@ -103,6 +103,21 @@ function renderSettingsPage() {
                 </button>
               </div>
               <div id="updateStatusArea" style="font-size:12px;color:var(--text-secondary);display:none;"></div>
+              
+              <!-- 更新源选择 -->
+              <div style="border-top:1px solid var(--border-light);padding-top:12px;margin-top:4px;">
+                <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">${escapeHtml(t('updateSource') || '更新源')}</div>
+                <select id="updateSourceSelect" class="input" style="margin-bottom:8px;">
+                  <option value="github">GitHub（需科学上网）</option>
+                  <option value="mirror">GitHub 镜像（推荐国内用户）</option>
+                  <option value="custom">自定义服务器</option>
+                </select>
+                <div id="customUrlArea" style="display:none;">
+                  <input type="text" id="customUpdateUrl" class="input" placeholder="https://your-server.com/updates" style="margin-bottom:8px;">
+                </div>
+                <div id="updateSourceDesc" style="font-size:11px;color:var(--text-muted);"></div>
+              </div>
+              
               <div style="font-size:11px;color:var(--text-muted);line-height:1.5;">
                 ${escapeHtml(t('autoUpdateDesc') || '软件会自动检查更新。发现新版本时会自动下载并提示安装。')}
               </div>
@@ -193,9 +208,77 @@ function attachSettingsListeners() {
   const checkUpdateBtn = document.getElementById('checkUpdateBtn');
   if (checkUpdateBtn) checkUpdateBtn.addEventListener('click', checkForUpdate);
 
+  // 更新源选择
+  initUpdateSourceSelector();
+
   if (importInput) {
     importInput.addEventListener('change', importBackup);
   }
+}
+
+/**
+ * 初始化更新源选择器
+ */
+async function initUpdateSourceSelector() {
+  const selectEl = document.getElementById('updateSourceSelect');
+  const customUrlArea = document.getElementById('customUrlArea');
+  const customUrlInput = document.getElementById('customUpdateUrl');
+  const descEl = document.getElementById('updateSourceDesc');
+
+  if (!selectEl || !window.electronAPI?.updater?.getSources) return;
+
+  try {
+    const result = await window.electronAPI.updater.getSources();
+    const { sources, current } = result;
+
+    // 设置当前选中的更新源
+    selectEl.value = current.source;
+
+    // 显示自定义 URL 输入框（如果选择了自定义）
+    if (current.source === 'custom' && customUrlArea) {
+      customUrlArea.style.display = 'block';
+      if (customUrlInput) customUrlInput.value = current.customUrl || '';
+    }
+
+    // 更新描述
+    updateSourceDescription(current.source, sources, descEl);
+
+    // 监听选择变化
+    selectEl.addEventListener('change', async () => {
+      const newSource = selectEl.value;
+
+      // 显示/隐藏自定义 URL 输入框
+      if (customUrlArea) {
+        customUrlArea.style.display = newSource === 'custom' ? 'block' : 'none';
+      }
+
+      // 更新描述
+      updateSourceDescription(newSource, sources, descEl);
+
+      // 保存设置
+      const customUrl = newSource === 'custom' && customUrlInput ? customUrlInput.value : '';
+      await window.electronAPI.updater.setSource(newSource, customUrl);
+    });
+
+    // 监听自定义 URL 输入
+    if (customUrlInput) {
+      customUrlInput.addEventListener('change', async () => {
+        if (selectEl.value === 'custom') {
+          await window.electronAPI.updater.setSource('custom', customUrlInput.value);
+        }
+      });
+    }
+  } catch (e) {
+    console.log('[Settings] 初始化更新源选择器失败:', e);
+  }
+}
+
+/**
+ * 更新更新源描述
+ */
+function updateSourceDescription(source, sources, descEl) {
+  if (!descEl || !sources[source]) return;
+  descEl.textContent = sources[source].description || '';
 }
 
 // ============================================================

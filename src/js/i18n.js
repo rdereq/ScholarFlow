@@ -99,6 +99,14 @@ const I18N = {
     update_restart: 'Restart & Install',
     update_failed: 'Update Failed',
     update_unknown_error: 'An unknown error occurred during the update process.',
+    updateSource: 'Update Source',
+    updateSourceGithub: 'GitHub (requires VPN)',
+    updateSourceMirror: 'GitHub Mirror (recommended for China)',
+    updateSourceCustom: 'Custom Server',
+    updateSourceGithubDesc: 'GitHub official source (requires VPN)',
+    updateSourceMirrorDesc: 'GitHub mirror acceleration (recommended for users in China)',
+    updateSourceCustomDesc: 'Use your own update server',
+    customUpdateUrlPlaceholder: 'https://your-server.com/updates',
 
     // Top bar - 顶部栏
     searchPlaceholder: 'Search literature, notes, tags...',
@@ -378,6 +386,14 @@ const I18N = {
     update_restart: '立即重启安装',
     update_failed: '更新失败',
     update_unknown_error: '更新过程中发生未知错误。',
+    updateSource: '更新源',
+    updateSourceGithub: 'GitHub（需科学上网）',
+    updateSourceMirror: 'GitHub 镜像（推荐国内用户）',
+    updateSourceCustom: '自定义服务器',
+    updateSourceGithubDesc: 'GitHub 官方源（需科学上网）',
+    updateSourceMirrorDesc: 'GitHub 镜像加速（推荐国内用户）',
+    updateSourceCustomDesc: '使用自建更新服务器',
+    customUpdateUrlPlaceholder: 'https://your-server.com/updates',
 
     // Top bar - 顶部栏
     searchPlaceholder: '搜索文献、笔记、标签...',
