@@ -29,6 +29,7 @@
 - **阅读计时器**: 记录阅读时长
 
 ### 🔄 自动更新
+- **多更新源**: 支持 GitHub 官方源和镜像源（推荐国内用户）
 - **自动检测**: 应用启动时自动检查更新
 - **一键更新**: 发现新版本自动下载并提示安装
 - **发布说明**: 更新时显示版本变更内容
@@ -57,7 +58,7 @@
 
 从 [Releases](https://github.com/rdereq/ScholarFlow/releases) 页面下载最新版本的安装程序：
 
-- **Windows**: `ScholarFlow-1.1.0-Setup.exe`
+- **Windows**: `ScholarFlow-1.2.0-Setup.exe`
 
 ### 从源码运行
 
