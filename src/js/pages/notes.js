@@ -125,6 +125,11 @@ function renderNoteCardsSafe(notes) {
     const lit = appData.literature.find(l => l.id === n.litId);
     const safeId = escapeAttr(n.id);
 
+    // Module 4: 查找与笔记关联的标注
+    const linkedAnns = (n.annotationIds && typeof window.annotationState !== 'undefined')
+      ? (window.annotationState.annotations || []).filter(a => n.annotationIds.includes(a.id))
+      : [];
+
     return '<div class="note-card notes-page-card" data-note-id="' + safeId + '" style="cursor:pointer;">' +
       // 标题和导出按钮
       '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">' +
@@ -139,6 +144,23 @@ function renderNoteCardsSafe(notes) {
       '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;">' + escapeHtml((n.content || '').replace(/[#*]/g, '').slice(0, 200)) + '</div>' +
       // 标签
       '<div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;">' + (n.tags || []).map(t => '<span class="tag">' + escapeHtml(t) + '</span>').join('') + '</div>' +
+      // Module 4: 关联标注列表
+      (linkedAnns.length > 0
+        ? '<div class="note-related-annotations">' +
+            '<div class="note-related-annotations-header" onclick="(function(el){const list=el.nextElementSibling;if(list){list.style.display=list.style.display===\'none\'?\'block\':\'none\';}})(this)">' +
+              '&#128196; ' + escapeHtml(t('pdfRelatedAnnotations')) + ' (' + linkedAnns.length + ')' +
+            '</div>' +
+            '<div id="related-anns-' + safeId + '">' +
+              linkedAnns.map(a =>
+                '<div class="note-related-annotation-item" onclick="(function(id,p){if(typeof goToPage===\'function\')goToPage(p);if(typeof switchPage===\'function\')switchPage(\'detail\',currentDetailId);})(\'' + a.id + '\',' + a.pageNum + ')">' +
+                  '<span class="note-annotation-text-preview">"' + escapeHtml((a.selectedText || '').slice(0, 50)) + (a.selectedText && a.selectedText.length > 50 ? '...' : '') + '"</span>' +
+                  '<span class="note-annotation-pagenum">' + escapeHtml(t('pdfPage')) + ' ' + a.pageNum + '</span>' +
+                '</div>'
+              ).join('') +
+            '</div>' +
+          '</div>'
+        : ''
+      ) +
       // 更新时间
       '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">' + escapeHtml(t('updated')) + ': ' + formatDate(n.updatedAt) + '</div>' +
     '</div>';

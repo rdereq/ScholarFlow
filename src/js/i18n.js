@@ -272,6 +272,88 @@ const I18N = {
     pdfReplace: 'Replace PDF',
     pdfRemove: 'Remove PDF',
     pdfDragHint: 'Drop PDF file here',
+    pdfTooLarge: 'PDF file is too large. Maximum size is 100MB.',
+    
+    // PDF Viewer v1.3 - 新增功能
+    pdfSinglePage: 'Single Page',
+    pdfDoublePage: 'Double Page',
+    pdfSearch: 'Search in PDF',
+    pdfSearchPlaceholder: 'Enter search text...',
+    pdfSearching: 'Searching...',
+    pdfSearchResultsCount: 'Found {count} results',
+    pdfNoResults: 'No results found',
+    pdfOutline: 'Table of Contents',
+    pdfNoOutline: 'No table of contents available',
+    pdfNightMode: 'Night Mode',
+    pdfAnnotate: 'Annotate',
+    pdfInkAnnotate: 'Draw',
+    
+    // Annotation tools - 标注工具
+    pdfHighlight: 'Highlight',
+    pdfUnderline: 'Underline',
+    pdfStrikethrough: 'Strikethrough',
+    pdfNote: 'Add Note',
+    pdfAnnotationColor: 'Annotation Color',
+    pdfEditNote: 'Edit Note',
+    pdfNotePlaceholder: 'Add your note here...',
+    pdfLinkNote: 'Link to Note',
+    
+    // Ink tools - 手写工具
+    pdfPen: 'Pen',
+    pdfEraser: 'Eraser',
+    pdfInkColor: 'Ink Color',
+    pdfInkWidth: 'Pen Width',
+
+    // Module 1: Text Box & Ink - 文本框与手写
+    pdfTextBox: 'Text Box',
+    pdfInk: 'Draw / Ink',
+    pdfInkThickness: 'Pen Thickness',
+    pdfThin: 'Thin',
+    pdfMedium: 'Medium',
+    pdfThick: 'Thick',
+
+    // Module 2: Scroll/Page Mode - 滚动/翻页模式
+    pdfScrollMode: 'Scroll Mode',
+    pdfPageMode: 'Page Mode',
+    pdfPrevPageNav: 'Previous page',
+    pdfNextPageNav: 'Next page',
+
+    // Module 3: Text Extraction & Image Copy - 文本提取与图片复制
+    pdfCopyText: 'Copy Selected Text',
+    pdfCopyAsQuote: 'Copy as Quote',
+    pdfAnnotateSelection: 'Highlight Selection',
+    pdfExportText: 'Export Text',
+    pdfExportCurrentPage: 'Export Current Page',
+    pdfExportAll: 'Export All Pages',
+    pdfCopyPageAsImage: 'Copy Page as Image',
+    pdfNoSelection: 'No text selected',
+    pdfCopiedToClipboard: 'Copied to clipboard',
+    pdfExportingText: 'Exporting text...',
+
+    // Module 4: Annotation-Note Linking - 标注笔记关联
+    pdfLinkNote: 'Link Note',
+    pdfCreateNote: 'Quick Create Note',
+    pdfLinkedNote: 'Linked Note',
+    pdfUnlinkNote: 'Unlink',
+    pdfConvertToNote: 'Convert to Note',
+    pdfRelatedAnnotations: 'Related Annotations',
+    pdfAnnotationsCount: '{count} linked annotation(s)',
+    pdfGoToAnnotation: 'Go to Annotation',
+    pdfNoLinkedNotes: 'No linked notes',
+    pdfNoteLinked: 'Note linked successfully',
+    pdfQuickCreateNote: '+ Quick Create Note',
+    pdfSelectNote: 'Select a note to link',
+    pdfEnterNoteContent: 'Enter note content...',
+    pdfNoteCreatedFromAnnotation: 'Note created from annotation',
+    pdfSelectNoteToLink: 'Choose a note to link this annotation to:',
+    
+    // Annotation export - 标注导出
+    pdfExportAnnotated: 'Export with Annotations',
+    pdfAnnotationEmbedded: 'Annotations embedded in PDF',
+    
+    // Reading position - 阅读位置
+    pdfRememberPosition: 'Remember last position',
+    pdfLastPosition: 'Continue from last position',
 
     // Add literature modal - 添加文献模态框
     addLitTitle: 'Add Literature',
@@ -556,6 +638,88 @@ const I18N = {
     pdfReplace: '替换PDF',
     pdfRemove: '移除PDF',
     pdfDragHint: '拖放PDF文件到此处',
+    pdfTooLarge: 'PDF文件过大，最大支持100MB。',
+    
+    // PDF Viewer v1.3 - 新增功能
+    pdfSinglePage: '单页模式',
+    pdfDoublePage: '双页模式',
+    pdfSearch: 'PDF内搜索',
+    pdfSearchPlaceholder: '输入搜索文本...',
+    pdfSearching: '搜索中...',
+    pdfSearchResultsCount: '找到 {count} 个结果',
+    pdfNoResults: '未找到结果',
+    pdfOutline: '目录',
+    pdfNoOutline: '此PDF没有目录',
+    pdfNightMode: '夜间模式',
+    pdfAnnotate: '标注',
+    pdfInkAnnotate: '手写',
+    
+    // Annotation tools - 标注工具
+    pdfHighlight: '高亮',
+    pdfUnderline: '下划线',
+    pdfStrikethrough: '删除线',
+    pdfNote: '添加便签',
+    pdfAnnotationColor: '标注颜色',
+    pdfEditNote: '编辑便签',
+    pdfNotePlaceholder: '在此添加备注...',
+    pdfLinkNote: '关联笔记',
+    
+    // Ink tools - 手写工具
+    pdfPen: '画笔',
+    pdfEraser: '橡皮擦',
+    pdfInkColor: '画笔颜色',
+    pdfInkWidth: '画笔粗细',
+
+    // Module 1: Text Box & Ink - 文本框与手写
+    pdfTextBox: '文本框',
+    pdfInk: '手写批注',
+    pdfInkThickness: '画笔粗细',
+    pdfThin: '细',
+    pdfMedium: '中',
+    pdfThick: '粗',
+
+    // Module 2: Scroll/Page Mode - 滚动/翻页模式
+    pdfScrollMode: '滚动模式',
+    pdfPageMode: '翻页模式',
+    pdfPrevPageNav: '上一页',
+    pdfNextPageNav: '下一页',
+
+    // Module 3: Text Extraction & Image Copy - 文本提取与图片复制
+    pdfCopyText: '复制所选文本',
+    pdfCopyAsQuote: '复制为引用格式',
+    pdfAnnotateSelection: '高亮选中文本',
+    pdfExportText: '导出文本',
+    pdfExportCurrentPage: '导出当前页',
+    pdfExportAll: '导出全部页面',
+    pdfCopyPageAsImage: '复制页面为图片',
+    pdfNoSelection: '未选择文本',
+    pdfCopiedToClipboard: '已复制到剪贴板',
+    pdfExportingText: '正在导出文本...',
+
+    // Module 4: Annotation-Note Linking - 标注笔记关联
+    pdfLinkNote: '关联笔记',
+    pdfCreateNote: '快速创建笔记',
+    pdfLinkedNote: '已关联笔记',
+    pdfUnlinkNote: '取消关联',
+    pdfConvertToNote: '转为笔记',
+    pdfRelatedAnnotations: '关联标注',
+    pdfAnnotationsCount: '{count} 个关联标注',
+    pdfGoToAnnotation: '跳转到标注',
+    pdfNoLinkedNotes: '暂无关联笔记',
+    pdfNoteLinked: '笔记关联成功',
+    pdfQuickCreateNote: '+ 快速创建笔记',
+    pdfSelectNote: '选择笔记',
+    pdfEnterNoteContent: '输入笔记内容...',
+    pdfNoteCreatedFromAnnotation: '已从标注创建笔记',
+    pdfSelectNoteToLink: '选择要关联的笔记：',
+    
+    // Annotation export - 标注导出
+    pdfExportAnnotated: '导出带标注PDF',
+    pdfAnnotationEmbedded: '标注已嵌入PDF',
+    
+    // Reading position - 阅读位置
+    pdfRememberPosition: '记住上次位置',
+    pdfLastPosition: '从上次位置继续',
 
     // Add literature modal - 添加文献模态框
     addLitTitle: '添加文献',

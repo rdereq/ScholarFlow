@@ -6,11 +6,13 @@
 <!-- 安全修复 [SEC-004]: 添加 Content Security Policy 限制资源加载来源 -->
 <!-- 注意 [ELEC-011]: unsafe-eval 是 TailwindCSS CDN JIT 编译所必需的。
      生产环境建议将 TailwindCSS 构建为本地 CSS 文件以移除 unsafe-eval。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.crossref.org https://api.semanticscholar.org https://api.openalex.org https://github.com; img-src 'self' data: blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.crossref.org https://api.semanticscholar.org https://api.openalex.org https://github.com https://cdn.jsdelivr.net; img-src 'self' data: blob:; worker-src 'self' blob:;">
 <title>ScholarFlow - Literature Reading Tracker</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- 安全修复 [SEC-005]: 为 ECharts CDN 资源添加 SRI 完整性校验，防止 CDN 被劫持后注入恶意代码 -->
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js" integrity="sha384-o5uz97et3bErHvpKfD4Jz4n0JfhJDWABFuF4NP+iEEDxE1VwMWJ19QGR0lqFZnr6" crossorigin="anonymous"></script>
+<!-- PDF.js 库 -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs" type="module"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script>
@@ -150,8 +152,17 @@ SCRIPT MODULES - 加载顺序很重要！
 <!-- CRUD操作和数据管理模块 -->
 <script src="./js/crud.js"></script>
 
-<!-- PDF阅读器模块 -->
-<script src="./js/pdf.js"></script>
+<!-- PDF阅读器模块 (v1.3) -->
+<script src="./js/pdf-viewer.js"></script>
+<script src="./js/pdf-annotation.js"></script>
+
+<!-- 引用生成模块 (v1.0) -->
+<script src="./js/citation/language-detect.js"></script>
+<script src="./js/citation/citation-author.js"></script>
+<script src="./js/citation/citation-formats.js"></script>
+<script src="./js/citation/citation-engine.js"></script>
+<script src="./js/citation/citation-export.js"></script>
+<script src="./js/citation/citation-ui.js"></script>
 
 <!-- 自动更新模块 -->
 <script src="./js/updater.js"></script>

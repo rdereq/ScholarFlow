@@ -17,11 +17,18 @@
 // 主渲染函数
 // ============================================================
 
+// ============================================================
+// 批量选择状态（引用功能）
+// ============================================================
+let _selectedLitIds = new Set();
+
 /**
  * 渲染文献库页面
  * 根据当前过滤器设置生成文献列表
  */
 function renderLibrary() {
+  // 切换视图/过滤时清空选取
+  _selectedLitIds.clear();
   // 复制文献列表进行过滤
   let filtered = [...appData.literature];
   const f = libraryFilters;
@@ -66,6 +73,23 @@ function renderLibrary() {
           <!-- 表格视图按钮 -->
           <button class="btn-icon" onclick="libraryView='table';renderLibrary();" title="Table View" style="${libraryView === 'table' ? 'background:var(--accent-bg);color:var(--accent);border-color:var(--accent);' : ''}">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          </button>
+        </div>
+        <!-- 引用导出按钮组 -->
+        <div style="display:flex;gap:4px;align-items:center;border-left:1px solid var(--border-color);padding-left:12px;margin-left:4px;">
+          <select id="citation-quick-format" style="font-size:12px;padding:4px 6px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;" onchange="citationFormat=this.value;localStorage.setItem('citation_default_format',this.value);">
+            <option value="APA 7th">APA 7th</option>
+            <option value="MLA 9th">MLA 9th</option>
+            <option value="Chicago 17th (作者-日期)">Chicago (作者-日期)</option>
+            <option value="Chicago 17th (注释-书目)">Chicago (注释-书目)</option>
+            <option value="GB/T 7714-2015">GB/T 7714-2015</option>
+            <option value="IEEE">IEEE</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="handleQuickCopyCitations()" style="font-size:12px;padding:4px 10px;white-space:nowrap;" title="复制选中文献的引用">
+            📋 ${escapeHtml(t('copyCitation') || '复制引用')}
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="handleExportAllCitations()" style="font-size:12px;padding:4px 10px;white-space:nowrap;" title="导出全部文献引用为文件">
+            📤 ${escapeHtml(t('exportAll') || '导出全部')}
           </button>
         </div>
       </div>
@@ -118,15 +142,65 @@ function renderLibrary() {
   if (libContent) {
     libContent.innerHTML = libraryView === 'card' ? renderLibraryCards(filtered) : renderLibraryTable(filtered);
 
-    // 附加点击事件监听器
+    // 附加点击事件监听器（支持 Ctrl+多选）
     libContent.querySelectorAll('.lit-card').forEach(el => {
-      el.addEventListener('click', () => switchPage('detail', el.dataset.litId));
+      el.addEventListener('click', (e) => {
+        const litId = el.dataset.litId;
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          _toggleSelection(el, litId);
+        } else {
+          _selectedLitIds.clear();
+          _clearAllSelectionStyles();
+          switchPage('detail', litId);
+        }
+      });
     });
     libContent.querySelectorAll('.lib-table-row').forEach(el => {
-      el.addEventListener('click', () => switchPage('detail', el.dataset.litId));
+      el.addEventListener('click', (e) => {
+        const litId = el.dataset.litId;
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          _toggleSelection(el, litId);
+        } else {
+          _selectedLitIds.clear();
+          _clearAllSelectionStyles();
+          switchPage('detail', litId);
+        }
+      });
     });
   }
+
+  // 事件委托：右键菜单（引用功能 T04）
+  setTimeout(() => {
+    const pageEl = document.getElementById('page-library');
+    if (pageEl && !pageEl._citationContextReady) {
+      pageEl._citationContextReady = true;
+      pageEl.addEventListener('contextmenu', (e) => {
+        const litEl = e.target.closest('[data-lit-id]');
+        if (!litEl) return;
+        e.preventDefault();
+        const litId = litEl.getAttribute('data-lit-id');
+        if (!_selectedLitIds.has(litId)) {
+          _selectedLitIds.add(litId);
+          litEl.classList.add('lit-selected');
+        }
+        const selectedItems = appData.literature.filter(l => _selectedLitIds.has(l.id));
+        if (selectedItems.length > 0 && typeof showCitationContextMenu === 'function') {
+          showCitationContextMenu(e.clientX, e.clientY, selectedItems);
+        }
+      });
+    }
+  }, 0);
+
+  // 恢复已保存的引用格式偏好
+  setTimeout(() => {
+    const sel = document.getElementById('citation-quick-format');
+    const saved = localStorage.getItem('citation_default_format');
+    if (sel && saved) sel.value = saved;
+  }, 10);
 }
+// <<< renderLibrary 在此处闭合
 
 // ============================================================
 // 卡片视图渲染
@@ -256,6 +330,24 @@ function renderLibraryTable(items) {
       </tbody>
     </table>
   </div>`;
+}
+
+// ============================================================
+// 批量选择辅助函数
+// ============================================================
+
+function _toggleSelection(el, litId) {
+  if (_selectedLitIds.has(litId)) {
+    _selectedLitIds.delete(litId);
+    el.classList.remove('lit-selected');
+  } else {
+    _selectedLitIds.add(litId);
+    el.classList.add('lit-selected');
+  }
+}
+
+function _clearAllSelectionStyles() {
+  document.querySelectorAll('.lit-selected').forEach(el => el.classList.remove('lit-selected'));
 }
 
 // ============================================================

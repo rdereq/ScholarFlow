@@ -43,5 +43,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     switch: (userId) => ipcRenderer.invoke('user:switch', userId),
     delete: (userId) => ipcRenderer.invoke('user:delete', userId),
     update: (userId, updates) => ipcRenderer.invoke('user:update', userId, updates)
+  },
+  // 剪贴板操作
+  clipboard: {
+    writeText: (text) => ipcRenderer.invoke('clipboard:writeText', text),
+    writeImage: (dataUrl) => ipcRenderer.invoke('clipboard:writeImage', dataUrl),
+    readText: () => ipcRenderer.invoke('clipboard:readText')
   }
 });

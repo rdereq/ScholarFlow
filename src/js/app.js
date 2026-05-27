@@ -548,6 +548,86 @@ function renderTopbar() {
 }
 
 // ============================================================
+// 引用功能 — 快捷导出（简化版，替代复杂弹窗）
+// ============================================================
+
+/** 当前默认引用格式 */
+let citationFormat = localStorage.getItem('citation_default_format') || 'APA 7th';
+
+/**
+ * 快捷复制选中文献的引用到剪贴板
+ * 优先使用批量选择集，否则使用单篇文献
+ */
+function handleQuickCopyCitations() {
+  // 尝试获取 library.js 中的选中集
+  let items;
+  if (typeof _selectedLitIds !== 'undefined' && _selectedLitIds.size > 0) {
+    items = appData.literature.filter(l => _selectedLitIds.has(l.id));
+  } else {
+    items = appData.literature;
+  }
+
+  if (!items.length) {
+    console.log('[Citation] 无文献可导出');
+    return;
+  }
+
+  const fmt = citationFormat || 'APA 7th';
+  let lines;
+  try {
+    lines = window.Citation.generateList(items, fmt);
+  } catch (e) {
+    console.error('[Citation] 生成失败:', e);
+    return;
+  }
+
+  const text = window.CitationExport.exportToText(lines);
+  window.CitationExport.copyToClipboard(text).then(() => {
+    _showCitationToast(items.length, fmt);
+  }).catch(() => {
+    _showCitationToast(items.length, fmt, true);
+  });
+}
+
+/**
+ * 导出全部文献引用为文件
+ */
+function handleExportAllCitations() {
+  const items = appData.literature || [];
+  if (!items.length) return;
+
+  const fmt = citationFormat || 'APA 7th';
+  const lines = window.Citation.generateList(items, fmt);
+  const text = window.CitationExport.exportToText(lines);
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'references_' + fmt.replace(/[\/\\ ]/g, '_') + '.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 200);
+}
+
+/**
+ * Toast 提示
+ */
+function _showCitationToast(count, fmt, isError) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2fb872;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;z-index:50000;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.3s;';
+  if (isError) {
+    toast.style.background = '#e74c3c';
+    toast.textContent = '❌ 复制失败，请手动复制';
+  } else {
+    toast.textContent = '✅ 已复制 ' + count + ' 条引用 (' + fmt + ')';
+  }
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 2000);
+}
+
+// ============================================================
 // 模块导出
 // ============================================================
 
@@ -566,4 +646,88 @@ if (typeof window !== 'undefined') {
   window.handleGlobalSearch = handleGlobalSearch;
   window.renderSidebar = renderSidebar;
   window.renderTopbar = renderTopbar;
+  // 引用功能
+  window.showCitationContextMenu = showCitationContextMenu;
+  window.citationFormat = citationFormat;
+  window.handleQuickCopyCitations = handleQuickCopyCitations;
+  window.handleExportAllCitations = handleExportAllCitations;
+}
+
+// ============================================================
+// 引用功能 — 右键菜单（T04）
+// ============================================================
+
+let _contextMenuEl = null;
+
+function showCitationContextMenu(x, y, selectedItems) {
+  if (_contextMenuEl) {
+    _contextMenuEl.parentNode?.removeChild(_contextMenuEl);
+    _contextMenuEl = null;
+  }
+
+  const count = selectedItems.length;
+
+  _contextMenuEl = document.createElement('div');
+  _contextMenuEl.setAttribute('data-citation-ui', 'context-menu');
+  _contextMenuEl.style.cssText = 'position:fixed;z-index:20000;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.14);padding:6px 0;min-width:240px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;color:#1f2937;';
+
+  // 防溢出定位
+  const menuW = 260, menuH = 110;
+  _contextMenuEl.style.left = Math.min(x, window.innerWidth - menuW - 8) + 'px';
+  _contextMenuEl.style.top = Math.min(y, window.innerHeight - menuH - 8) + 'px';
+
+  // 菜单项
+  const citeLabel = count > 1 ? '📋 生成所选文献引用（' + count + ' 篇）' : '📋 生成此文献引用';
+  _contextMenuEl.appendChild(_makeMenuItem(citeLabel, () => {
+    window.CitationUI.showModal(selectedItems);
+    _destroyCitationMenu();
+  }));
+
+  _contextMenuEl.appendChild(_makeMenuItem('📤 导出参考文献列表', () => {
+    _exportAllCitations();
+    _destroyCitationMenu();
+  }));
+
+  document.body.appendChild(_contextMenuEl);
+
+  setTimeout(() => {
+    document.addEventListener('click', _onDocClickForMenu, { once: true });
+    document.addEventListener('contextmenu', _onDocClickForMenu, { once: true });
+  }, 0);
+}
+
+function _makeMenuItem(label, onClick) {
+  const item = document.createElement('div');
+  item.textContent = label;
+  item.style.cssText = 'padding:10px 16px;cursor:pointer;white-space:nowrap;';
+  item.addEventListener('mouseenter', () => { item.style.background = '#f3f4f6'; });
+  item.addEventListener('mouseleave', () => { item.style.background = ''; });
+  item.addEventListener('click', onClick);
+  return item;
+}
+
+function _onDocClickForMenu(e) {
+  if (_contextMenuEl && !_contextMenuEl.contains(e.target)) {
+    _destroyCitationMenu();
+  }
+}
+
+function _destroyCitationMenu() {
+  if (_contextMenuEl) {
+    _contextMenuEl.parentNode?.removeChild(_contextMenuEl);
+    _contextMenuEl = null;
+  }
+}
+
+function _exportAllCitations() {
+  const items = window.appData?.literature || [];
+  if (!items.length) return;
+  const fmt = localStorage.getItem('citation_default_format') || 'APA 7th';
+  const lines = window.Citation.generateList(items, fmt);
+  const text = window.CitationExport.exportToText(lines);
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'references.txt';
+  a.click();
 }

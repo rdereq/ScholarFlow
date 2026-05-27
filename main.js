@@ -1,9 +1,11 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog, shell, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
-const { autoUpdater } = require('electron-updater');
 const https = require('https');
+
+// autoUpdater 延迟加载，避免在 app 就绪前访问 app.getVersion() 导致崩溃
+let autoUpdater = null;
 
 // 注意 [ELEC-008]: 当前未启用加密。如果未来存储敏感数据（如 API Key），需添加 encryptionKey
 // const store = new Store({ encryptionKey: '...' });
@@ -12,25 +14,23 @@ const store = new Store();
 // 强制设置应用语言为简体中文
 app.commandLine.appendSwitch('lang', 'zh-CN');
 
-// 安全修复 [SEC-003]: 生产环境隐藏开发者工具菜单
-// 打包后的应用不应暴露 DevTools、重新加载等调试功能，防止用户/攻击者执行任意代码
-const viewSubmenu = app.isPackaged ? [
+// 安全：打包后隐藏开发者工具和重新加载菜单
+const viewSubmenu = [];
+if (!app.isPackaged) {
+  viewSubmenu.push(
+    { label: '重新加载', accelerator: 'CmdOrCtrl+R', role: 'reload' },
+    { label: '强制重新加载', accelerator: 'Shift+CmdOrCtrl+R', role: 'forceReload' },
+    { label: '开发者工具', accelerator: 'F12', role: 'toggleDevTools' },
+    { type: 'separator' }
+  );
+}
+viewSubmenu.push(
   { label: '实际大小', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
   { label: '放大', accelerator: 'CmdOrCtrl+Plus', role: 'zoomIn' },
   { label: '缩小', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
   { type: 'separator' },
   { label: '全屏', accelerator: 'F11', role: 'togglefullscreen' }
-] : [
-  { label: '重新加载', accelerator: 'CmdOrCtrl+R', role: 'reload' },
-  { label: '强制重新加载', accelerator: 'Shift+CmdOrCtrl+R', role: 'forceReload' },
-  { label: '开发者工具', accelerator: 'F12', role: 'toggleDevTools' },
-  { type: 'separator' },
-  { label: '实际大小', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
-  { label: '放大', accelerator: 'CmdOrCtrl+Plus', role: 'zoomIn' },
-  { label: '缩小', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
-  { type: 'separator' },
-  { label: '全屏', accelerator: 'F11', role: 'togglefullscreen' }
-];
+);
 
 // 定义中文菜单模板
 const template = [
@@ -129,9 +129,6 @@ function createWindow() {
   // 加载本地HTML文件
   mainWindow.loadFile('src/index.html');
 
-  // 开发环境打开调试工具
-  // mainWindow.webContents.openDevTools();
-
   // 关闭窗口时的交互逻辑
   mainWindow.on('close', (event) => {
     if (isQuitting) return; // 正在退出，不拦截
@@ -186,6 +183,12 @@ function sendUpdaterStatus(type, data = null) {
  * - 更新失败时向用户展示错误信息
  */
 function initAutoUpdater() {
+  // 延迟加载 electron-updater（避免在 app 就绪前访问 app.getVersion() 导致崩溃）
+  if (!autoUpdater) {
+    const updater = require('electron-updater');
+    autoUpdater = updater.autoUpdater;
+  }
+  
   // 仅在打包后的应用中启用（开发环境跳过）
   if (!app.isPackaged) {
     console.log('[AutoUpdate] 开发模式，跳过自动更新');
@@ -857,4 +860,47 @@ ipcMain.handle('dialog:selectFile', (_, filters) => {
     }
     return null;
   });
+});
+
+// Module 3: Clipboard Operations — 使用顶层已引入的 clipboard
+
+ipcMain.handle('clipboard:writeText', async (_, text) => {
+  try {
+    clipboard.writeText(String(text || ''));
+    return true;
+  } catch (e) {
+    console.error('[Clipboard] writeText error:', e);
+    return false;
+  }
+});
+
+ipcMain.handle('clipboard:writeImage', async (_, dataUrl) => {
+  try {
+    // dataUrl is base64 image string like "data:image/png;base64,..."
+    if (!dataUrl || typeof dataUrl !== 'string') return false;
+
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+    const buf = Buffer.from(base64Data, 'base64');
+
+    // Determine format from data URL
+    const format = (dataUrl.match(/data:image\/(\w+)/) || [])[1] || 'png';
+
+    const { nativeImage } = require('electron');
+    const img = nativeImage.createFromBuffer(buf);
+    clipboard.writeImage(img);
+
+    return true;
+  } catch (e) {
+    console.error('[Clipboard] writeImage error:', e);
+    return false;
+  }
+});
+
+ipcMain.handle('clipboard:readText', async () => {
+  try {
+    return clipboard.readText();
+  } catch (e) {
+    console.error('[Clipboard] readText error:', e);
+    return '';
+  }
 });

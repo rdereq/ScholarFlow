@@ -36,3 +36,4 @@ preferences.json
 *.tmp
 *.bak
 src_backup/
+.workbuddy/

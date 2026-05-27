@@ -455,6 +455,10 @@ select.input { cursor: pointer; }
 }
 .lit-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
+/* 批量引用选中状态 */
+.lit-selected { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-bg) !important; }
+.lib-table-row.lit-selected { background: var(--accent-bg) !important; }
+
 /* === NOTES CARD - 笔记卡片 === */
 
 .note-card {
@@ -598,6 +602,9 @@ select.input { cursor: pointer; }
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .pdf-toolbar .btn-icon { width: 30px; height: 30px; font-size: 14px; }
 .pdf-toolbar .pdf-filename {
@@ -1071,4 +1078,1040 @@ select.input {
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+}
+
+/* ============================================================
+ * PDF Viewer v1.3 Styles - PDF 阅读器样式
+ * ============================================================ */
+
+/* === PDF VIEWER CONTAINER - PDF 阅读器容器 === */
+
+.pdf-viewer-container {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  height: 100%;
+  min-height: 500px;
+}
+
+.pdf-viewer-container.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  border-radius: 0;
+  min-height: 100vh;
+}
+
+/* === PDF TOOLBAR - PDF 工具栏 === */
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.pdf-toolbar .btn-icon {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+}
+
+.pdf-toolbar .btn-icon.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.pdf-toolbar .pdf-filename {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  user-select: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.pdf-toolbar .separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* === PDF PAGE CONTROL - 页码控制 === */
+
+.pdf-page-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-page-control input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.pdf-page-control input[type="number"]::-webkit-outer-spin-button,
+.pdf-page-control input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* === PDF ZOOM CONTROL - 缩放控制 === */
+
+.pdf-zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* === PDF VIEW MODE - 视图模式 === */
+
+.pdf-view-mode {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* === PDF MAIN AREA - 主内容区 === */
+
+.pdf-main-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* === PDF SIDEBAR - 侧边栏 === */
+
+.pdf-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.2s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.pdf-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.pdf-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* === PDF CONTENT - 内容区 === */
+
+.pdf-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;  /* 修复：允许横向滚动，放大PDF时可以左右移动 */
+  background: var(--bg-secondary);
+  position: relative;
+}
+
+/* === PDF LOADING - 加载指示器 === */
+
+.pdf-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg-secondary);
+  z-index: 10;
+}
+
+.pdf-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* === PDF PAGES CONTAINER - 页面容器 === */
+
+.pdf-pages-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* === PDF SPREAD - 双页展开 === */
+
+.pdf-spread {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+/* === PDF PAGE WRAPPER - 页面包装器 === */
+
+.pdf-page-wrapper {
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pdf-page-container {
+  position: relative;
+}
+
+.pdf-canvas {
+  display: block;
+  position: relative;
+  z-index: 1; /* 最低层级 */
+}
+
+/* === PDF TEXT LAYER - 文本层 === */
+
+.pdf-text-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  opacity: 1;  /* 必须为 1，否则影响鼠标事件命中检测 */
+  line-height: 1;
+  z-index: 100;
+  pointer-events: auto;
+  user-select: text !important;
+}
+
+.pdf-text-layer > span {
+  color: rgba(0, 0, 0, 0.01);  /* 关键修复：不能完全 transparent，否则浏览器拒绝鼠标拖选 */
+  position: absolute;
+  white-space: pre;
+  pointer-events: auto;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+.pdf-text-layer ::selection {
+  background: rgba(255, 235, 59, 0.3);
+}
+
+/* 标注模式下：保留选择高亮（让用户看到自己选中了什么）*/
+.pdf-viewer-container.annotating-mode .pdf-text-layer ::selection {
+  background: rgba(79, 70, 229, 0.25) !important;
+}
+
+/* === PDF ANNOTATION LAYER - 标注层 === */
+
+.pdf-annotation-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none !important; /* 穿透到文本层，保证标注不影响选中 */
+  z-index: 50; /* 介于 canvas 和 text-layer 之间 */
+}
+
+.pdf-annotation-highlight {
+  transition: opacity 0.15s;
+}
+
+.pdf-annotation-highlight:hover {
+  opacity: 0.6 !important;
+}
+
+/* === PDF INK LAYER - 手写层 === */
+
+.pdf-ink-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 16; /* 低于文本层(z-index: 20) */
+}
+
+.pdf-ink-layer.active {
+  pointer-events: all;
+}
+
+/* === PDF PAGE LABEL - 页码标签 === */
+
+.pdf-page-label {
+  text-align: center;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-light);
+}
+
+/* === PDF ANNOTATION TOOLBAR - 标注工具栏 === */
+
+.pdf-annotation-toolbar,
+.pdf-ink-toolbar {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  position: sticky;
+  top: 46px;
+  z-index: 99;
+}
+
+.annotation-tools,
+.ink-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* === PDF ANNOTATION POPUP - 标注弹出菜单 === */
+
+.pdf-annotation-popup {
+  position: fixed;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  min-width: 250px;
+  max-width: 350px;
+  animation: fadeIn 0.15s ease;
+}
+
+.annotation-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.annotation-type {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.annotation-popup-content {
+  padding: 12px;
+}
+
+.annotation-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.annotation-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.annotation-popup-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+/* === PDF NOTE DIALOG - 便签对话框 === */
+
+.pdf-note-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+}
+
+.pdf-note-dialog {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 400px;
+  animation: fadeIn 0.2s ease;
+}
+
+.pdf-note-dialog .dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+}
+
+.pdf-note-dialog .dialog-body {
+  padding: 20px;
+}
+
+.pdf-note-dialog .selected-text-preview {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.pdf-note-dialog .dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-light);
+}
+
+/* === PDF SEARCH RESULT - 搜索结果 === */
+
+.pdf-search-result {
+  transition: background 0.15s;
+}
+
+/* === PDF OUTLINE - 目录 === */
+
+.pdf-outline-item {
+  transition: background 0.15s;
+}
+
+/* === PDF NIGHT MODE - 夜间模式 === */
+
+.pdf-viewer-container.pdf-night-mode .pdf-content {
+  background: #1a1a1a;
+}
+
+.pdf-viewer-container.pdf-night-mode .pdf-page-wrapper {
+  background: #2a2a2a;
+}
+
+.pdf-viewer-container.pdf-night-mode .pdf-canvas {
+  filter: invert(0.9) hue-rotate(180deg);
+}
+
+.pdf-viewer-container.pdf-night-mode .pdf-text-layer {
+  color: #e0e0e0;
+}
+
+/* === PDF FULLSCREEN EXIT - 全屏退出按钮 === */
+
+.pdf-fullscreen-exit {
+  display: none;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 210;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s;
+}
+
+.pdf-fullscreen-exit:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.pdf-viewer-container.fullscreen ~ .pdf-fullscreen-exit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* === PDF PLACEHOLDER - 上传占位符 === */
+
+.pdf-viewer-placeholder {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 500px;
+  border: 2px dashed var(--border-color);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.pdf-viewer-placeholder.dragover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* === RESPONSIVE - 响应式 === */
+
+@media (max-width: 768px) {
+  .pdf-toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  
+  .pdf-toolbar .pdf-filename {
+    max-width: 150px;
+  }
+  
+  .pdf-sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .pdf-pages-container {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .pdf-spread {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* ============================================================
+ * Module 1: Text Box & Ink Styles - 文本框与手写样式
+ * ============================================================ */
+
+/* Text Box Annotation - 文本框标注 */
+.pdf-freetext-annotation {
+  position: absolute;
+  min-width: 120px;
+  min-height: 40px;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 6px 8px;
+  cursor: move;
+  z-index: 35;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow: hidden;
+  resize: both;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.pdf-freetext-annotation.editing {
+  cursor: text;
+  resize: none;
+}
+
+.pdf-freetext-annotation .freetext-content {
+  width: 100%;
+  height: 100%;
+  min-height: 28px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  resize: none;
+  overflow: hidden;
+}
+
+.pdf-freetext-annotation .freetext-display {
+  width: 100%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.pdf-freetext-annotation .freetext-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  cursor: nwse-resize;
+  border-radius: 2px 0 4px 0;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.pdf-freetext-annotation .freetext-resize-handle:hover {
+  opacity: 1;
+}
+
+/* Ink / Hand-drawing - 手写批注 */
+.pdf-ink-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 34;
+}
+
+.pdf-ink-canvas.active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+/* Pen thickness selector - 画笔粗细选择器 */
+.pdf-ink-thickness-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pdf-ink-thickness-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pdf-ink-thickness-btn:hover {
+  background: var(--bg-hover);
+}
+
+.pdf-ink-thickness-btn.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.pdf-ink-thickness-preview {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+ * Module 2: Page Mode Styles - 翻页模式样式
+ * ============================================================ */
+
+/* Page mode container - 翻页模式容器 */
+.pdf-content.page-mode {
+  overflow: hidden !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.pdf-content.page-mode .pdf-pages-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  position: relative;
+}
+
+.pdf-content.page-mode .pdf-pages-container .pdf-page-wrapper {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.pdf-content.page-mode .pdf-page-wrapper.hidden-page {
+  display: none !important;
+}
+
+/* Page navigation arrows - 翻页导航箭头 */
+.pdf-page-nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 90;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border-color);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s ease;
+}
+
+.pdf-page-nav-arrow:hover {
+  background: var(--bg-card);
+  color: var(--accent);
+  transform: translateY(-50%) scale(1.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.pdf-page-nav-arrow.prev {
+  left: 16px;
+}
+
+.pdf-page-nav-arrow.next {
+  right: 16px;
+}
+
+.pdf-viewer-container.page-mode-active .pdf-page-nav-arrow {
+  display: flex;
+}
+
+[data-theme="dark"] .pdf-page-nav-arrow {
+  background: rgba(36, 36, 36, 0.95);
+}
+
+/* Page indicator dots - 页码指示器 */
+.pdf-page-indicator {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 80;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .pdf-page-indicator {
+  background: rgba(36, 36, 36, 0.9);
+}
+
+.pdf-page-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pdf-page-dot.active {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+
+.pdf-page-dot:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================================
+ * Module 3: Context Menu & Export Styles - 右键菜单与导出样式
+ * ============================================================ */
+
+/* PDF Context Menu - PDF右键菜单 */
+.pdf-context-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 5px;
+  animation: fadeIn 0.12s ease;
+}
+
+.pdf-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.12s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.pdf-context-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.pdf-context-menu-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.pdf-context-menu-separator {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 8px;
+}
+
+/* Export dropdown - 导出下拉菜单 */
+.pdf-export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.pdf-export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 160px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  z-index: 110;
+  display: none;
+}
+
+.pdf-export-menu.show {
+  display: block;
+  animation: fadeIn 0.15s ease;
+}
+
+.pdf-export-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.12s;
+  font-family: inherit;
+}
+
+.pdf-export-menu button:hover {
+  background: var(--bg-hover);
+}
+
+/* ============================================================
+ * Module 4: Note Linking Styles - 笔记关联样式
+ * ============================================================ */
+
+/* Note selector dialog - 笔记选择对话框 */
+.pdf-note-link-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.pdf-note-link-dialog {
+  background: var(--bg-card);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  width: 92%;
+  max-width: 420px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.2s ease;
+}
+
+.pdf-note-link-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.pdf-note-link-dialog-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.pdf-note-link-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s;
+}
+
+.pdf-note-link-item:hover {
+  background: var(--bg-hover);
+}
+
+.pdf-note-link-item.selected {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+}
+
+.pdf-note-link-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-note-link-item-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.pdf-note-link-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-light);
+  gap: 8px;
+}
+
+/* Linked note info in popup - 标注弹窗中的关联笔记信息 */
+.annotation-linked-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.annotation-linked-note:hover {
+  background: var(--bg-hover);
+}
+
+.annotation-linked-note-name {
+  color: var(--accent);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Related annotations in notes page - 笔记页面中的关联标注列表 */
+.note-related-annotations {
+  margin-top: 10px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 10px;
+}
+
+.note-related-annotations-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.note-related-annotation-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 3px;
+  transition: background 0.15s;
+  background: var(--bg-secondary);
+}
+
+.note-related-annotation-item:hover {
+  background: var(--bg-hover);
+}
+
+.note-annotation-text-preview {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.note-annotation-pagenum {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
 }
