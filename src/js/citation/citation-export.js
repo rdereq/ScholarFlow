@@ -100,10 +100,84 @@
     });
   }
 
+  /**
+   * 导出为 Word HTML 格式 (.doc)。
+   * Word 可原生打开 HTML 文件，自动渲染为文档格式。
+   *
+   * @param {Array<string>} lines - 引用字符串数组
+   * @param {boolean} ordered - 是否带编号
+   * @return {string} Word 兼容的 HTML 字符串
+   */
+  function exportToWord(lines, ordered) {
+    var items = (ordered !== false)
+      ? lines.map(function (l, i) { return '<p style="margin-bottom:8px;padding-left:36px;text-indent:-36px;">[' + (i + 1) + '] ' + _escapeHTML(l) + '</p>'; })
+      : lines.map(function (l) { return '<p style="margin-bottom:8px;">' + _escapeHTML(l) + '</p>'; });
+
+    return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">'
+      + '<head><meta charset="UTF-8"><style>body{font-family:"Times New Roman",SimSun,serif;font-size:12pt;line-height:2;margin:72pt;}</style></head>'
+      + '<body>' + items.join('\n') + '</body></html>';
+  }
+
+  /**
+   * 导出为 BibTeX 格式 (.bib)。
+   * 兼容 BibLaTeX 和传统 BibTeX。
+   *
+   * @param {Array<Object>} items - 文献条目数组
+   * @return {string} BibTeX 格式字符串
+   */
+  function exportToBibTeX(items) {
+    var entries = items.map(function (item) {
+      var key = _bibtexKey(item);
+      var type = item.journal ? 'article' : 'book';
+      var lines = ['@' + type + '{' + key + ','];
+
+      if (item.authors) lines.push('  author = {' + _bibtexAuthors(item.authors) + '},');
+      if (item.title)  lines.push('  title = {' + _escapeBibTeX(item.title) + '},');
+      if (item.journal) lines.push('  journal = {' + _escapeBibTeX(item.journal) + '},');
+      if (item.year)   lines.push('  year = {' + item.year + '},');
+      if (item.volume) lines.push('  volume = {' + item.volume + '},');
+      if (item.issue)  lines.push('  number = {' + item.issue + '},');
+      if (item.pages)  lines.push('  pages = {' + item.pages + '},');
+      if (item.doi)    lines.push('  doi = {' + item.doi + '},');
+      if (item.publisher) lines.push('  publisher = {' + _escapeBibTeX(item.publisher) + '},');
+
+      lines.push('}');
+      return lines.join('\n');
+    });
+
+    return entries.join('\n\n') + '\n';
+  }
+
+  // ---- BibTeX 辅助函数 ----
+
+  function _bibtexKey(item) {
+    var author = (item.authors || '').split(',')[0].trim().replace(/\s+/g, '');
+    if (!author) author = 'unknown';
+    return author + (item.year || '0000') + (item.title || '').replace(/[^a-zA-Z]/g, '').substring(0, 10);
+  }
+
+  function _bibtexAuthors(authorsStr) {
+    return authorsStr.split(',').map(function (a) {
+      var parts = a.trim().split(/\s+/);
+      if (parts.length >= 2) return parts[parts.length - 1] + ', ' + parts.slice(0, -1).join(' ');
+      return a.trim();
+    }).join(' and ');
+  }
+
+  function _escapeBibTeX(text) {
+    return String(text).replace(/[&%$#_{}~^\\]/g, '\\$&');
+  }
+
+  function _escapeHTML(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   // ---- 暴露全局 API ----
   window.CitationExport = {
     exportToText: exportToText,
     exportToMarkdown: exportToMarkdown,
+    exportToWord: exportToWord,
+    exportToBibTeX: exportToBibTeX,
     copyToClipboard: copyToClipboard,
   };
 })();

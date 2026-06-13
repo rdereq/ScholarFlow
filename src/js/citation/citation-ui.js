@@ -119,6 +119,14 @@
       return window.CitationExport.exportToMarkdown(lines, _numberLines);
     }
 
+    if (_currentExportType === 'word') {
+      return window.CitationExport.exportToWord(lines, _numberLines);
+    }
+
+    if (_currentExportType === 'bibtex') {
+      return window.CitationExport.exportToBibTeX(_selectedItems);
+    }
+
     // 纯文本
     if (_numberLines) {
       var numbered = [];
@@ -311,6 +319,16 @@
     fmtLabel.appendChild(_formatSelectEl);
     controlsEl.appendChild(fmtLabel);
 
+    // "管理自定义格式" 链接
+    var customLink = document.createElement('span');
+    customLink.textContent = '⚙';
+    customLink.title = '管理自定义引用格式';
+    customLink.style.cssText = 'cursor:pointer;color:#6b7280;font-size:14px;padding:4px;border-radius:4px;';
+    customLink.addEventListener('mouseenter', function () { customLink.style.background = '#f3f4f6'; });
+    customLink.addEventListener('mouseleave', function () { customLink.style.background = ''; });
+    customLink.addEventListener('click', _showCustomFormatManager);
+    controlsEl.appendChild(customLink);
+
     // 导出格式下拉
     var expLabel = document.createElement('label');
     expLabel.style.cssText = 'display: flex; align-items: center; gap: 6px; color: #374151;';
@@ -399,8 +417,10 @@
       if (_selectedItems.length === 0) return;
       var content = _buildExportContent();
       if (!content) return;
-      var ext = _currentExportType === 'markdown' ? '.md' : '.txt';
-      var mime = _currentExportType === 'markdown' ? 'text/markdown' : 'text/plain';
+      var ext = '.txt', mime = 'text/plain';
+      if (_currentExportType === 'markdown') { ext = '.md'; mime = 'text/markdown'; }
+      else if (_currentExportType === 'word') { ext = '.doc'; mime = 'application/msword'; }
+      else if (_currentExportType === 'bibtex') { ext = '.bib'; mime = 'text/plain'; }
       _downloadFile(content, 'references' + ext, mime);
     });
 
@@ -469,6 +489,25 @@
     }
     _formatSelectEl.appendChild(frag);
 
+    // 自定义格式
+    if (window.CitationTemplates) {
+      var customs = window.CitationTemplates.getAll();
+      if (customs.length > 0) {
+        var sep = document.createElement('option');
+        sep.disabled = true;
+        sep.textContent = '── 自定义格式 ──';
+        _formatSelectEl.appendChild(sep);
+        for (var c = 0; c < customs.length; c++) {
+          var copt = document.createElement('option');
+          copt.value = customs[c].name;
+          copt.textContent = customs[c].name;
+          copt.style.color = '#6b7280';
+          if (customs[c].name === _currentFormat) copt.selected = true;
+          _formatSelectEl.appendChild(copt);
+        }
+      }
+    }
+
     // 导出格式下拉
     var expFrag = document.createDocumentFragment();
     var plainOpt = document.createElement('option');
@@ -483,9 +522,125 @@
     mdOpt.selected = (_currentExportType === 'markdown');
     expFrag.appendChild(mdOpt);
 
+    var wordOpt = document.createElement('option');
+    wordOpt.value = 'word';
+    wordOpt.textContent = 'Word (.doc)';
+    wordOpt.selected = (_currentExportType === 'word');
+    expFrag.appendChild(wordOpt);
+
+    var bibOpt = document.createElement('option');
+    bibOpt.value = 'bibtex';
+    bibOpt.textContent = 'BibTeX (.bib)';
+    bibOpt.selected = (_currentExportType === 'bibtex');
+    expFrag.appendChild(bibOpt);
+
     _exportSelectEl.appendChild(expFrag);
 
     _optionsPopulated = true;
+  }
+
+  // =========================================================================
+  //  自定义格式管理器
+  // =========================================================================
+
+  function _showCustomFormatManager() {
+    if (!window.CitationTemplates) return;
+
+    var panel = document.createElement('div');
+    panel.style.cssText = 'margin-top:12px;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;';
+
+    // 标题
+    var titleDiv = document.createElement('div');
+    titleDiv.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:8px;color:#374151;';
+    titleDiv.textContent = '自定义引用格式';
+    panel.appendChild(titleDiv);
+
+    // 已有格式列表
+    var customs = window.CitationTemplates.getAll();
+    if (customs.length > 0) {
+      customs.forEach(function (c) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:4px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:12px;';
+        row.innerHTML = '<span style="font-weight:500;">' + _esc(c.name) + '</span>'
+          + '<span style="color:#9ca3af;font-family:monospace;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(c.template.substring(0, 30)) + '</span>';
+        var delBtn = document.createElement('button');
+        delBtn.textContent = '✕';
+        delBtn.style.cssText = 'border:none;background:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;';
+        delBtn.addEventListener('click', function () {
+          window.CitationTemplates.remove(c.name);
+          window.CitationRefreshCustom();
+          row.remove();
+          _refreshFormatSelect();
+        });
+        row.appendChild(delBtn);
+        panel.appendChild(row);
+      });
+    } else {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'font-size:12px;color:#9ca3af;padding:8px 0;';
+      empty.textContent = '暂无自定义格式。使用字段 {author} {year} {title} 等创建模板。';
+      panel.appendChild(empty);
+    }
+
+    // 新建表单
+    var formDiv = document.createElement('div');
+    formDiv.style.cssText = 'display:flex;gap:6px;margin-top:8px;';
+
+    var nameInput = document.createElement('input');
+    nameInput.placeholder = '格式名称';
+    nameInput.style.cssText = 'flex:1;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;';
+    formDiv.appendChild(nameInput);
+
+    var tmplInput = document.createElement('input');
+    tmplInput.placeholder = '{author} ({year}). {title}.';
+    tmplInput.style.cssText = 'flex:2;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:monospace;';
+    formDiv.appendChild(tmplInput);
+
+    var addBtn = document.createElement('button');
+    addBtn.textContent = '添加';
+    addBtn.style.cssText = 'padding:4px 12px;background:var(--accent,#4f46e5);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;';
+    addBtn.addEventListener('click', function () {
+      var n = nameInput.value.trim();
+      var t = tmplInput.value.trim();
+      if (!n || !t) return;
+      if (window.CitationTemplates.add(n, t)) {
+        window.CitationRefreshCustom();
+        _rebuildCustomPanel(panel);
+        _refreshFormatSelect();
+      }
+    });
+    formDiv.appendChild(addBtn);
+
+    panel.appendChild(formDiv);
+
+    // 替换旧面板
+    var old = document.querySelector('[data-citation-custom-panel]');
+    if (old) old.remove();
+
+    // 插入到 controls 下方
+    var controlsEl = document.querySelector('[data-citation-controls]');
+    if (controlsEl && controlsEl.parentNode) {
+      controlsEl.parentNode.insertBefore(panel, controlsEl.nextSibling);
+    }
+  }
+
+  function _rebuildCustomPanel(oldPanel) {
+    if (oldPanel && oldPanel.parentNode) {
+      oldPanel.remove();
+      _showCustomFormatManager();
+    }
+  }
+
+  function _refreshFormatSelect() {
+    _optionsPopulated = false;
+    if (_formatSelectEl) {
+      while (_formatSelectEl.options.length > 0) _formatSelectEl.remove(0);
+      _populateSelects();
+    }
+  }
+
+  function _esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   // =========================================================================

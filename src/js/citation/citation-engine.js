@@ -109,4 +109,22 @@
       Citation.register(name, fn);
     });
   }
+
+  /**
+   * 刷新自定义格式：从 CitationTemplates 注册所有自定义格式到引擎
+   * 在 citation-templates.js 加载后调用。
+   */
+  function refreshCustomFormats() {
+    if (!window.CitationTemplates) return;
+    var templates = window.CitationTemplates.getAll();
+    templates.forEach(function (t) {
+      Citation.register(t.name, function (item) {
+        return window.CitationTemplates.generate(item, t.name);
+      });
+    });
+  }
+  window.CitationRefreshCustom = refreshCustomFormats;
+
+  // 延迟刷新（等待 citation-templates.js 加载）
+  setTimeout(refreshCustomFormats, 100);
 })();

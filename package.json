@@ -1,6 +1,6 @@
 {
   "name": "scholarflow",
-  "version": "1.3.0",
+  "version": "1.4.1",
   "description": "ScholarFlow - Literature Reading Tracker",
   "author": "ScholarFlow Team",
   "main": "main.js",
