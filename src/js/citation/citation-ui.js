@@ -154,7 +154,12 @@
    * @param {string} mimeType
    */
   function _downloadFile(content, filename, mimeType) {
-    var blob = new Blob([content], { type: mimeType });
+    if (typeof window.downloadFile === 'function') {
+      window.downloadFile(filename, content, mimeType);
+      return;
+    }
+    // 回退方案
+    var blob = new Blob([content], { type: mimeType || 'text/plain' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -162,7 +167,6 @@
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    // 异步清理，确保下载触发后再回收
     setTimeout(function () {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
@@ -429,7 +433,7 @@
       if (!content) return;
       var ext = '.txt', mime = 'text/plain';
       if (_currentExportType === 'markdown') { ext = '.md'; mime = 'text/markdown'; }
-      else if (_currentExportType === 'word') { ext = '.doc'; mime = 'application/msword'; }
+      else if (_currentExportType === 'word') { ext = '.doc.html'; mime = 'text/html'; }
       else if (_currentExportType === 'bibtex') { ext = '.bib'; mime = 'text/plain'; }
       _downloadFile(content, 'references' + ext, mime);
     });
@@ -534,7 +538,7 @@
 
     var wordOpt = document.createElement('option');
     wordOpt.value = 'word';
-    wordOpt.textContent = 'Word (.doc)';
+    wordOpt.textContent = 'Word (.doc.html)';
     wordOpt.selected = (_currentExportType === 'word');
     expFrag.appendChild(wordOpt);
 
@@ -552,6 +556,8 @@
   // =========================================================================
   //  自定义格式管理器
   // =========================================================================
+
+  var _editingFormatName = null;
 
   function _showCustomFormatManager() {
     if (!window.CitationTemplates) return;
@@ -572,7 +578,20 @@
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:4px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;font-size:12px;';
         row.innerHTML = '<span style="font-weight:500;">' + _esc(c.name) + '</span>'
-          + '<span style="color:#9ca3af;font-family:monospace;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(c.template.substring(0, 30)) + '</span>';
+          + '<span style="color:#9ca3af;font-family:monospace;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(c.template.substring(0, 30)) + '</span>';
+        var btnGrp = document.createElement('span');
+        btnGrp.style.cssText = 'display:flex;gap:2px;flex-shrink:0;';
+        var editBtn = document.createElement('button');
+        editBtn.textContent = '✎';
+        editBtn.title = '编辑';
+        editBtn.style.cssText = 'border:none;background:none;color:#4f46e5;cursor:pointer;font-size:12px;padding:0 4px;';
+        editBtn.addEventListener('click', function () {
+          nameInput.value = c.name;
+          tmplInput.value = c.template;
+          _editingFormatName = c.name;
+          addBtn.textContent = '更新';
+        });
+        btnGrp.appendChild(editBtn);
         var delBtn = document.createElement('button');
         delBtn.textContent = '✕';
         delBtn.style.cssText = 'border:none;background:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;';
@@ -582,7 +601,8 @@
           row.remove();
           _refreshFormatSelect();
         });
-        row.appendChild(delBtn);
+        btnGrp.appendChild(delBtn);
+        row.appendChild(btnGrp);
         panel.appendChild(row);
       });
     } else {
@@ -613,10 +633,24 @@
       var n = nameInput.value.trim();
       var t = tmplInput.value.trim();
       if (!n || !t) return;
-      if (window.CitationTemplates.add(n, t)) {
-        window.CitationRefreshCustom();
-        _rebuildCustomPanel(panel);
-        _refreshFormatSelect();
+      if (_editingFormatName) {
+        // 编辑模式
+        if (window.CitationTemplates.update(_editingFormatName, n, t)) {
+          _editingFormatName = null;
+          addBtn.textContent = '添加';
+          nameInput.value = '';
+          tmplInput.value = '';
+          window.CitationRefreshCustom();
+          _rebuildCustomPanel(panel);
+          _refreshFormatSelect();
+        }
+      } else {
+        // 添加模式
+        if (window.CitationTemplates.add(n, t)) {
+          window.CitationRefreshCustom();
+          _rebuildCustomPanel(panel);
+          _refreshFormatSelect();
+        }
       }
     });
     formDiv.appendChild(addBtn);

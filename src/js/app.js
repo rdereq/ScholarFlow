@@ -606,12 +606,16 @@ function handleExportAllCitations() {
   var lines = window.Citation.generateList(items, fmt);
   var text = window.CitationExport.exportToText(lines);
 
-  var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'references_' + fmt.replace(/[\/\\ ]/g, '_') + '.txt';
-  a.click();
-  setTimeout(function () { URL.revokeObjectURL(a.href); }, 200);
+  if (typeof window.downloadFile === 'function') {
+    window.downloadFile('references_' + fmt.replace(/[/\\ ]/g, '_') + '.txt', text, 'text/plain;charset=utf-8');
+  } else {
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'references_' + fmt.replace(/[/\\ ]/g, '_') + '.txt';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 200);
+  }
 }
 
 /**
@@ -731,9 +735,7 @@ function _exportAllCitations() {
   const fmt = localStorage.getItem('citation_default_format') || 'APA 7th';
   const lines = window.Citation.generateList(items, fmt);
   const text = window.CitationExport.exportToText(lines);
-  const blob = new Blob([text], { type: 'text/plain' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'references.txt';
-  a.click();
+  if (typeof window.downloadFile === 'function') {
+    window.downloadFile('references.txt', text, 'text/plain');
+  }
 }
