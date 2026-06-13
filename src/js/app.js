@@ -604,18 +604,45 @@ function handleExportAllCitations() {
 
   var fmt = citationFormat || 'APA 7th';
   var lines = window.Citation.generateList(items, fmt);
-  var text = window.CitationExport.exportToText(lines);
+
+  // 读取导出格式
+  var expSel = document.getElementById('citation-quick-export');
+  var expType = expSel ? expSel.value : 'txt';
+
+  var text, filename, mime;
+  if (expType === 'md') {
+    text = window.CitationExport.exportToMarkdown(lines, true);
+    filename = 'references.md'; mime = 'text/markdown';
+  } else if (expType === 'doc') {
+    text = window.CitationExport.exportToWord(lines, true);
+    filename = 'references.doc.html'; mime = 'text/html';
+  } else if (expType === 'bib') {
+    text = window.CitationExport.exportToBibTeX(items);
+    filename = 'references.bib'; mime = 'text/plain';
+  } else {
+    text = window.CitationExport.exportToText(lines);
+    filename = 'references.txt'; mime = 'text/plain;charset=utf-8';
+  }
 
   if (typeof window.downloadFile === 'function') {
-    window.downloadFile('references_' + fmt.replace(/[/\\ ]/g, '_') + '.txt', text, 'text/plain;charset=utf-8');
-  } else {
-    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'references_' + fmt.replace(/[/\\ ]/g, '_') + '.txt';
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 200);
+    window.downloadFile(filename, text, mime);
   }
+}
+
+/**
+ * 详情页复制单篇文献引用
+ */
+function handleCopyCitationForDetail(litId) {
+  var lit = appData.literature.find(function (l) { return l.id === litId; });
+  if (!lit) return;
+  var fmt = citationFormat || 'APA 7th';
+  var lines = window.Citation.generateList([lit], fmt);
+  var text = window.CitationExport.exportToText(lines);
+  window.CitationExport.copyToClipboard(text).then(function () {
+    _showCitationToast(1, fmt);
+  }).catch(function () {
+    _showCitationToast(1, fmt, true);
+  });
 }
 
 /**
@@ -661,6 +688,7 @@ if (typeof window !== 'undefined') {
   window.citationFormat = citationFormat;
   window.handleQuickCopyCitations = handleQuickCopyCitations;
   window.handleExportAllCitations = handleExportAllCitations;
+  window.handleCopyCitationForDetail = handleCopyCitationForDetail;
 }
 
 // ============================================================

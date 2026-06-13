@@ -139,8 +139,15 @@
       }
       key = key + suffix;
       
-      // 文献类型推断
-      var type = item.journal ? 'article' : 'book';
+      // 文献类型推断（5种）: article / book / inproceedings / phdthesis / online
+      var type = 'book';
+      if (item.journal) {
+        type = 'article';
+      } else {
+        var tlower = (item.title || '').toLowerCase();
+        if (/\b(conference|proceedings|symposium|workshop)\b/i.test(tlower)) type = 'inproceedings';
+        else if (/\b(dissertation|thesis|ph\.?d\.?|博士|硕士)\b/i.test(tlower)) type = 'phdthesis';
+      }
       var lines = ['@' + type + '{' + key + ','];
 
       if (item.authors) lines.push('  author = {' + _bibtexAuthors(item.authors) + '},');

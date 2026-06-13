@@ -63,6 +63,7 @@ function renderDetailPage(litId) {
             <div class="card-header">
               <span style="font-weight:600;font-size:15px;">${escapeHtml(t('metadata'))}</span>
               <button class="btn btn-secondary btn-sm" id="editLitBtn">${escapeHtml(t('edit'))}</button>
+              <button class="btn btn-primary btn-sm" onclick="handleCopyCitationForDetail('${safeId}')" title="复制当前文献的引用">📋 ${escapeHtml(t('copyCitation') || '复制引用')}</button>
             </div>
             <div class="card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">

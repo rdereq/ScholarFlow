@@ -37,6 +37,14 @@
     return (value !== undefined && value !== null && value !== '') ? String(value) : fallback;
   }
 
+  function inferType(item) {
+    var title = (item.title || '').toLowerCase();
+    if (item.journal) return 'journal';
+    if (/\b(conference|proceedings|symposium|workshop)\b/i.test(title)) return 'conference';
+    if (/\b(dissertation|thesis|ph\.?d\.?|博士|硕士)\b/i.test(title)) return 'thesis';
+    return 'book';
+  }
+  var GB_TYPE_MAP = { journal: 'J', book: 'M', conference: 'C', thesis: 'D' };
   /**
    * 智能拼接 —— 过滤空字符串后按分隔符拼接，避免多余标点。
    * @param {Array<string>} parts
@@ -143,6 +151,7 @@
     var issue = fb(item.issue);
     var pages = fb(item.pages);
     var doi = fb(item.doi);
+    var publisher = fb(item.publisher);
 
     var parts = [];
 
@@ -151,15 +160,20 @@
     // 标题用引号
     parts.push('"' + title + '."');
 
-    var sourceParts = [];
-    if (journal) sourceParts.push(journal);
-    if (volume) sourceParts.push('vol. ' + volume);
-    if (issue) sourceParts.push('no. ' + issue);
-    if (year) sourceParts.push(year);
-    if (pages) sourceParts.push('pp. ' + pages);
-    parts.push(joinWithDelimiter(sourceParts) + '.');
-
-    if (doi) parts.push('DOI: ' + doi + '.');
+    // MLA: 期刊 vs 书籍
+    if (journal) {
+      var sourceParts = [];
+      sourceParts.push(journal);
+      if (volume) sourceParts.push('vol. ' + volume);
+      if (issue) sourceParts.push('no. ' + issue);
+      if (year) sourceParts.push(year);
+      if (pages) sourceParts.push('pp. ' + pages);
+      parts.push(joinWithDelimiter(sourceParts) + '.');
+      if (doi) parts.push('DOI: ' + doi + '.');
+    } else {
+      if (publisher) parts.push(publisher + ',');
+      if (year) parts.push(year + '.');
+    }
 
     return parts.join(' ');
   }
@@ -191,6 +205,7 @@
     var issue = fb(item.issue);
     var pages = fb(item.pages);
     var doi = fb(item.doi);
+    var publisher = fb(item.publisher);
 
     var parts = [];
 
@@ -200,15 +215,18 @@
     // 标题用引号
     parts.push('"' + title + '."');
 
-    // 来源
-    var sourceParts = [journal];
-    var volIssueStr = volume;
-    if (issue) volIssueStr += ' (' + issue + ')';
-    if (volIssueStr) sourceParts.push(volIssueStr);
-    if (pages) sourceParts.push(pages);
-    parts.push(joinWithDelimiter(sourceParts, ' ') + '.');
-
-    if (doi) parts.push('https://doi.org/' + doi + '.');
+    // 来源: 期刊 vs 书籍
+    if (journal) {
+      var sourceParts = [journal];
+      var volIssueStr = volume;
+      if (issue) volIssueStr += ' (' + issue + ')';
+      if (volIssueStr) sourceParts.push(volIssueStr);
+      if (pages) sourceParts.push(': ' + pages);
+      parts.push(joinWithDelimiter(sourceParts) + '.');
+      if (doi) parts.push('https://doi.org/' + doi + '.');
+    } else {
+      if (publisher) parts.push(publisher + '.');
+    }
 
     return parts.join(' ');
   }
@@ -239,18 +257,24 @@
     var volume = fb(item.volume);
     var issue = fb(item.issue);
     var pages = fb(item.pages);
+    var publisher = fb(item.publisher);
 
     var parts = [];
 
     if (authorStr) parts.push(authorStr + '.');
     parts.push('"' + title + '."');
 
-    var sourceParts = [journal];
-    if (volume) sourceParts.push(volume);
-    if (issue) sourceParts.push('no. ' + issue);
-    if (year) sourceParts.push('(' + year + ')');
-    if (pages) sourceParts.push(pages);
-    parts.push(joinWithDelimiter(sourceParts) + '.');
+    if (journal) {
+      var sourceParts = [journal];
+      if (volume) sourceParts.push(volume);
+      if (issue) sourceParts.push('no. ' + issue);
+      if (year) sourceParts.push('(' + year + ')');
+      if (pages) sourceParts.push(pages);
+      parts.push(joinWithDelimiter(sourceParts) + '.');
+    } else {
+      if (publisher) parts.push(publisher + ',');
+      if (year) parts.push(year + '.');
+    }
 
     return parts.join(' ');
   }
@@ -289,9 +313,7 @@
     var issue = fb(item.issue);
     var pages = fb(item.pages);
     var doi = fb(item.doi);
-
-    // 文献类型推断
-    var refType = journal ? 'J' : 'M';
+    var refType = GB_TYPE_MAP[inferType(item)] || 'M';
 
     if (isChinese) {
       // 中文子格式 — 全角标点
@@ -366,6 +388,7 @@
     var issue = fb(item.issue);
     var pages = fb(item.pages);
     var doi = fb(item.doi);
+    var publisher = fb(item.publisher);
 
     var parts = [];
 
@@ -373,15 +396,19 @@
 
     parts.push('"' + title + ',"');
 
-    var sourceParts = [];
-    if (journal) sourceParts.push(journal);
-    if (volume) sourceParts.push('vol. ' + volume);
-    if (issue) sourceParts.push('no. ' + issue);
-    if (pages) sourceParts.push('pp. ' + pages);
-    if (year) sourceParts.push(String(year));
-    parts.push(joinWithDelimiter(sourceParts) + '.');
-
-    if (doi) parts.push('doi: ' + doi + '.');
+    if (journal) {
+      var sourceParts = [];
+      sourceParts.push(journal);
+      if (volume) sourceParts.push('vol. ' + volume);
+      if (issue) sourceParts.push('no. ' + issue);
+      if (pages) sourceParts.push('pp. ' + pages);
+      if (year) sourceParts.push(String(year));
+      parts.push(joinWithDelimiter(sourceParts) + '.');
+      if (doi) parts.push('doi: ' + doi + '.');
+    } else {
+      if (publisher) parts.push(publisher + ',');
+      if (year) parts.push(year + '.');
+    }
 
     return parts.join(' ');
   }

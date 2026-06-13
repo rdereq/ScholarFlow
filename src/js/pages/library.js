@@ -88,9 +88,15 @@ function renderLibrary() {
           <button class="btn btn-primary btn-sm" onclick="handleQuickCopyCitations()" style="font-size:12px;padding:4px 10px;white-space:nowrap;" title="复制选中文献的引用">
             📋 ${escapeHtml(t('copyCitation') || '复制引用')}
           </button>
-          <button class="btn btn-secondary btn-sm" onclick="handleExportAllCitations()" style="font-size:12px;padding:4px 10px;white-space:nowrap;" title="导出全部文献引用为文件">
-            📤 ${escapeHtml(t('exportAll') || '导出全部')}
+          <button class="btn btn-secondary btn-sm" onclick="handleExportAllCitations()" style="font-size:12px;padding:4px 10px;white-space:nowrap;" title="导出文献引用为文件">
+            📤 ${escapeHtml(t('exportAll') || '导出')}
           </button>
+          <select id="citation-quick-export" style="font-size:12px;padding:4px 6px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card);color:var(--text-primary);cursor:pointer;">
+            <option value="txt">.txt</option>
+            <option value="md">.md</option>
+            <option value="doc">.doc.html</option>
+            <option value="bib">.bib</option>
+          </select>
         </div>
       </div>
 
