@@ -53,18 +53,7 @@
 
 ---
 
-## 🔧 技术改动
 
-### `src/js/citation/citation-author.js`（完全重写）
-
-**核心 API:**
-
-```javascript
-CitationAuthor.parseAuthors('Yang, Bohm-Jung; Bahramy, Mohammad Saeed; Nagaosa, Naoto')
-// → [{ family: 'Yang', given: 'Bohm-Jung' }, ...]
-
-CitationAuthor.formatAuthorIEEE(parsedAuthors)
-// → "B.-J. Yang, M. S. Bahramy, and N. Nagaosa"
 ```
 
 **5 种格式化策略:**
