@@ -593,19 +593,25 @@ function handleQuickCopyCitations() {
  * 导出全部文献引用为文件
  */
 function handleExportAllCitations() {
-  const items = appData.literature || [];
+  // 优先使用选中集，否则导出全部
+  var items;
+  if (typeof _selectedLitIds !== 'undefined' && _selectedLitIds.size > 0) {
+    items = appData.literature.filter(function (l) { return _selectedLitIds.has(l.id); });
+  } else {
+    items = appData.literature || [];
+  }
   if (!items.length) return;
 
-  const fmt = citationFormat || 'APA 7th';
-  const lines = window.Citation.generateList(items, fmt);
-  const text = window.CitationExport.exportToText(lines);
+  var fmt = citationFormat || 'APA 7th';
+  var lines = window.Citation.generateList(items, fmt);
+  var text = window.CitationExport.exportToText(lines);
 
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-  const a = document.createElement('a');
+  var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'references_' + fmt.replace(/[\/\\ ]/g, '_') + '.txt';
   a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 200);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 200);
 }
 
 /**

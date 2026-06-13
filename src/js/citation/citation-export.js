@@ -126,8 +126,20 @@
    * @return {string} BibTeX 格式字符串
    */
   function exportToBibTeX(items) {
-    var entries = items.map(function (item) {
+    var usedKeys = {};
+    var entries = items.map(function (item, idx) {
       var key = _bibtexKey(item);
+      // 防冲突：添加序号后缀
+      var suffix = '';
+      if (usedKeys[key] !== undefined) {
+        suffix = String.fromCharCode(97 + usedKeys[key]); // a, b, c...
+        usedKeys[key]++;
+      } else {
+        usedKeys[key] = 0;
+      }
+      key = key + suffix;
+      
+      // 文献类型推断
       var type = item.journal ? 'article' : 'book';
       var lines = ['@' + type + '{' + key + ','];
 
@@ -137,7 +149,8 @@
       if (item.year)   lines.push('  year = {' + item.year + '},');
       if (item.volume) lines.push('  volume = {' + item.volume + '},');
       if (item.issue)  lines.push('  number = {' + item.issue + '},');
-      if (item.pages)  lines.push('  pages = {' + item.pages + '},');
+      // 页码：- 转 --
+      if (item.pages)  lines.push('  pages = {' + String(item.pages).replace(/-/g, '--') + '},');
       if (item.doi)    lines.push('  doi = {' + item.doi + '},');
       if (item.publisher) lines.push('  publisher = {' + _escapeBibTeX(item.publisher) + '},');
 
@@ -151,21 +164,31 @@
   // ---- BibTeX 辅助函数 ----
 
   function _bibtexKey(item) {
-    var author = (item.authors || '').split(',')[0].trim().replace(/\s+/g, '');
+    var author = (item.authors || '').split(/[,;]/)[0].trim().replace(/[^a-zA-Z0-9]/g, '').substring(0, 10);
     if (!author) author = 'unknown';
-    return author + (item.year || '0000') + (item.title || '').replace(/[^a-zA-Z]/g, '').substring(0, 10);
+    return author + (item.year || '0000') + ((item.title || '').replace(/[^a-zA-Z]/g, '').substring(0, 8));
   }
 
   function _bibtexAuthors(authorsStr) {
-    return authorsStr.split(',').map(function (a) {
-      var parts = a.trim().split(/\s+/);
-      if (parts.length >= 2) return parts[parts.length - 1] + ', ' + parts.slice(0, -1).join(' ');
-      return a.trim();
-    }).join(' and ');
+    // 使用 CitationAuthor 解析器（统一逗号/分号处理）
+    var parsed = [];
+    if (window.CitationAuthor && typeof window.CitationAuthor.parseAuthors === 'function') {
+      parsed = window.CitationAuthor.parseAuthors(authorsStr);
+    } else {
+      // 回退：按逗号分号拆
+      parsed = authorsStr.split(/[,;]+/).map(function (a) {
+        var p = a.trim().split(/\s+/);
+        return { family: p.length > 1 ? p[p.length - 1] : p[0] || '', given: p.length > 1 ? p.slice(0, -1).join(' ') : '' };
+      });
+    }
+    return parsed.map(function (a) {
+      return (a.family || '') + (a.given ? ', ' + a.given : '');
+    }).filter(function (s) { return s.length > 0; }).join(' and ');
   }
 
   function _escapeBibTeX(text) {
-    return String(text).replace(/[&%$#_{}~^\\]/g, '\\$&');
+    // 仅转义 BibTeX 特殊字符，不转义 DOI/URL 中的下划线
+    return String(text).replace(/[&%$#{}~^\\]/g, '\\$&');
   }
 
   function _escapeHTML(text) {

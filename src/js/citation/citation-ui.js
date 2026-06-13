@@ -67,11 +67,16 @@
   function _loadDefaultFormat() {
     try {
       var saved = localStorage.getItem(STORAGE_KEY_DEFAULT_FORMAT);
-      if (saved && ALL_FORMATS.indexOf(saved) !== -1) {
+      if (saved && (ALL_FORMATS.indexOf(saved) !== -1 || _hasCustomFormat(saved))) {
         return saved;
       }
     } catch (e) { /* localStorage 不可用 */ }
     return ALL_FORMATS[0];
+  }
+
+  function _hasCustomFormat(name) {
+    if (!window.CitationTemplates) return false;
+    return window.CitationTemplates.getAll().some(function (f) { return f.name === name; });
   }
 
   /**
@@ -103,7 +108,11 @@
       return;
     }
 
-    _previewEl.textContent = lines.join('\n\n');
+    // 使用 innerHTML 以支持自定义模板的斜体标记，同时转义用户数据中的 HTML
+    var html = lines.map(function (l) {
+      return _esc(l).replace(/&lt;i&gt;/g, '<i>').replace(/&lt;\/i&gt;/g, '</i>');
+    }).join('<br><br>');
+    _previewEl.innerHTML = html;
   }
 
   /**
@@ -288,6 +297,7 @@
 
     // 控件行
     var controlsEl = document.createElement('div');
+    controlsEl.setAttribute('data-citation-controls', '');
     controlsEl.style.cssText = [
       'display: flex',
       'align-items: center',

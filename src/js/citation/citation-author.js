@@ -53,24 +53,44 @@
       return result;
     }
 
-    // 英文名：按逗号拆分
-    var segments = rawTrimmed.split(',');
+    // 英文名：按逗号拆分为 "Family, Given" 对
+    //   "Smith, John" → [{family:"Smith", given:"John"}]
+    //   "Smith, John; Brown, Alice" → two authors
+    var segments = rawTrimmed.split(/[,;]+/);
     var authors = [];
+    var pendingFamily = null;
 
     for (var j = 0; j < segments.length; j++) {
       var seg = segments[j].trim();
       if (seg === '') continue;
 
+      // 只有一个词 + 之前有未配对的 family → 这是 given
+      if (pendingFamily && seg.split(/\s+/).length === 1) {
+        authors.push({ family: pendingFamily, given: seg });
+        pendingFamily = null;
+        continue;
+      }
+
+      // 单个词 → 可能是 family（等待后续 given 配对）
       var tokens = seg.split(/\s+/);
       if (tokens.length === 1) {
-        // 单个词 → 整体为 family
-        authors.push({ family: tokens[0], given: '' });
+        if (pendingFamily) {
+          authors.push({ family: pendingFamily, given: '' });
+        }
+        pendingFamily = tokens[0];
       } else {
-        // 最后一个词为 given，其余为 family
-        var given = tokens[tokens.length - 1];
-        var family = tokens.slice(0, tokens.length - 1).join(' ');
+        // 多个词 → "given family" 顺序，最后一个词为 family
+        if (pendingFamily) {
+          authors.push({ family: pendingFamily, given: '' });
+          pendingFamily = null;
+        }
+        var given = tokens.slice(0, tokens.length - 1).join(' ');
+        var family = tokens[tokens.length - 1];
         authors.push({ family: family, given: given });
       }
+    }
+    if (pendingFamily) {
+      authors.push({ family: pendingFamily, given: '' });
     }
 
     return authors;
@@ -87,7 +107,7 @@
    */
   function getInitial(given) {
     if (!given || given.length === 0) return '';
-    return given.charAt(0).toUpperCase() + '.';
+    return given.split(/\s+/).map(function(w) { return w.charAt(0).toUpperCase() + '.'; }).join(' ');
   }
 
   // ---------------------------------------------------------------------------

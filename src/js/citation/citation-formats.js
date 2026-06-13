@@ -290,11 +290,14 @@
     var pages = fb(item.pages);
     var doi = fb(item.doi);
 
+    // 文献类型推断
+    var refType = journal ? 'J' : 'M';
+
     if (isChinese) {
       // 中文子格式 — 全角标点
       var zhParts = [];
       if (authorStr) zhParts.push(authorStr);
-      zhParts.push(title + '[J].');
+      zhParts.push(title + '[' + refType + '].');
 
       var zhSourceParts = [];
       if (journal) zhSourceParts.push(journal);
@@ -314,7 +317,7 @@
     // 英文子格式 — 半角标点
     var enParts = [];
     if (authorStr) enParts.push(authorStr);
-    enParts.push(title + '[J].');
+    enParts.push(title + '[' + refType + '].');
 
     var enSourceParts = [];
     if (journal) enSourceParts.push(journal);
@@ -364,7 +367,7 @@
     var pages = fb(item.pages);
     var doi = fb(item.doi);
 
-    var parts = ['[' + index + ']'];
+    var parts = [];
 
     if (authorStr) parts.push(authorStr + ',');
 
