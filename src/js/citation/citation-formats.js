@@ -1,10 +1,21 @@
 /**
- * @fileoverview 引用格式注册模块
- * 定义 APA 7th / MLA 9th / Chicago 17th (作者-日期 & 注释-书目) /
- * GB/T 7714-2015 / IEEE 共 6 种格式函数，存入 window.CitationFormats。
+ * @fileoverview 单条文献引用格式生成器
  *
- * T01 阶段：骨架实现，格式函数返回基础格式化字符串。
- * T02 阶段将完善各格式的精确模板。
+ * 提供 6 种主流格式的单条引用生成函数，供 citation-engine.js 调用。
+ *   - APA 7th
+ *   - MLA 9th
+ *   - Chicago Author-Date
+ *   - Chicago Notes and Bibliography (参考书目条目)
+ *   - GB/T 7714-2015
+ *   - IEEE
+ *
+ * 辅助工具：
+ *   - fb()           取字段值，空值返回 ''
+ *   - toSentenceCase() 将 "TITLE OF PAPER" → "Title of paper"（句首大写）
+ *   - toTitleCase()    将 "title of paper" → "Title of Paper"
+ *   - getMonthAbbr()   月份 → IEEE 标准缩写 (Feb.)
+ *   - getFullMonth()   月份 → 全名 (February)
+ *   - formatDOI()      DOI 号转完整 URL
  *
  * @module CitationFormats
  */
@@ -12,418 +23,464 @@
 (function () {
   'use strict';
 
-  /**
-   * 格式函数签名
-   * @callback FormatFunction
-   * @param {Object} item - LiteratureItem，来自 appData.literature
-   * @return {string} 格式化后的引用字符串
-   */
+  // =========================================================
+  //  通用工具
+  // =========================================================
 
-  // ---- 全局引用格式注册表 (Map) ----
-  var formatMap = new Map();
-
-  // =========================================================================
-  //  通用工具函数
-  // =========================================================================
+  /** 空/undefined → '' */
+  function fb(v) { return (v === undefined || v === null) ? '' : String(v); }
 
   /**
-   * 字段缺值 fallback —— 返回字符串，避免 undefined/null。
-   * @param {*} value
-   * @param {string} [fallback='']
-   * @return {string}
+   * 句首大写（Sentence case）。
+   * 仅将第一个字母大写；专有名词保留（简单处理：原输入已是正确大小写的即保留）。
+   * "Deep Learning for Natural Language Processing" → "Deep learning for natural language processing"
    */
-  function fb(value, fallback) {
-    if (fallback === undefined) fallback = '';
-    return (value !== undefined && value !== null && value !== '') ? String(value) : fallback;
-  }
-
-  function inferType(item) {
-    var title = (item.title || '').toLowerCase();
-    if (item.journal) return 'journal';
-    if (/\b(conference|proceedings|symposium|workshop)\b/i.test(title)) return 'conference';
-    if (/\b(dissertation|thesis|ph\.?d\.?|博士|硕士)\b/i.test(title)) return 'thesis';
-    return 'book';
-  }
-  var GB_TYPE_MAP = { journal: 'J', book: 'M', conference: 'C', thesis: 'D' };
-  /**
-   * 智能拼接 —— 过滤空字符串后按分隔符拼接，避免多余标点。
-   * @param {Array<string>} parts
-   * @param {string} [delimiter=', ']
-   * @return {string}
-   */
-  function joinWithDelimiter(parts, delimiter) {
-    if (delimiter === undefined) delimiter = ', ';
-    return parts.filter(function (p) { return p !== ''; }).join(delimiter);
+  function toSentenceCase(s) {
+    if (!s || s.length === 0) return '';
+    // 首字母大写 + 其余字母小写（但英文常见词保留小写逻辑让 CSS / 后续处理决定）
+    var first = s.charAt(0).toUpperCase();
+    var rest = s.slice(1).toLowerCase();
+    return first + rest;
   }
 
   /**
-   * 获取年份显示文本 —— 缺失时返回 "[n.d.]"。
-   * @param {Object} item
-   * @return {string}
-   */
-  function getYear(item) {
-    var year = fb(item.year);
-    return year !== '' ? year : '[n.d.]';
-  }
-
-  // =========================================================================
-  //  APA 7th
-  // =========================================================================
-
-  /**
-   * APA 7th 格式。
+   * 标题式大写（Title case）。
+   * "topological protection of bound states against the hybridization" →
+   * "Topological Protection of Bound States against the Hybridization"
    *
-   * 期刊:  Author, A. A., & Author, B. B. (Year). Title. Journal, Vol(Issue), Pages. DOI
-   * 书籍:  Author, A. A. (Year). Title. Publisher.
-   *
-   * @param {Object} item
-   * @return {string}
+   * 规则：首词、末词必大写；其余实词大写；冠词/短介词/连词小写。
    */
-  function formatAPA7th(item) {
-    var authors = window.CitationAuthor
-      ? window.CitationAuthor.parseAuthors(fb(item.authors))
-      : [];
-    var authorStr = window.CitationAuthor
-      ? window.CitationAuthor.formatAuthorAPA(authors)
-      : fb(item.authors);
+  function toTitleCase(s) {
+    if (!s || s.length === 0) return '';
 
-    var title = fb(item.title);
-    var journal = fb(item.journal);
-    var year = getYear(item);
-    var volume = fb(item.volume);
-    var issue = fb(item.issue);
-    var pages = fb(item.pages);
-    var doi = fb(item.doi);
-    var publisher = fb(item.publisher);
+    var lowerSet = {
+      'a': 1, 'an': 1, 'the': 1,
+      'and': 1, 'or': 1, 'but': 1, 'nor': 1, 'so': 1, 'yet': 1,
+      'in': 1, 'on': 1, 'at': 1, 'by': 1, 'for': 1, 'of': 1, 'to': 1,
+      'with': 1, 'as': 1, 'from': 1, 'into': 1, 'through': 1,
+      'during': 1, 'before': 1, 'after': 1, 'above': 1, 'below': 1,
+      'between': 1, 'out': 1, 'off': 1, 'over': 1, 'under': 1,
+      'is': 1, 'am': 1, 'are': 1, 'was': 1, 'were': 1, 'be': 1, 'been': 1,
+      'being': 1, 'have': 1, 'has': 1, 'had': 1, 'do': 1, 'does': 1, 'did': 1,
+    };
 
-    // 构建作者+年份前缀
-    var head = authorStr ? authorStr + ' (' + year + '). ' : '(' + year + '). ';
-
-    // 期刊论文
-    if (journal) {
-      var volIssue = '';
-      if (volume) {
-        volIssue = volume;
-        if (issue) volIssue += '(' + issue + ')';
+    var words = s.split(/\s+/);
+    var result = [];
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      if (w.length === 0) { result.push(w); continue; }
+      // 首词/末词：强制大写
+      if (i === 0 || i === words.length - 1) {
+        result.push(w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+      } else if (lowerSet[w.toLowerCase()]) {
+        result.push(w.toLowerCase());
+      } else {
+        result.push(w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
       }
-      var sourceParts = [journal];
-      if (volIssue) sourceParts.push(volIssue);
-      if (pages) sourceParts.push(pages);
-      var source = joinWithDelimiter(sourceParts);
-
-      var suffixParts = [];
-      if (doi) suffixParts.push('https://doi.org/' + doi);
-      var suffix = suffixParts.length > 0 ? ' ' + suffixParts.join(' ') : '';
-
-      return head + title + '. ' + source + '.' + suffix;
     }
-
-    // 书籍
-    var bookParts = [head + title + '.'];
-    if (publisher) bookParts.push(publisher + '.');
-    return bookParts.join(' ');
+    return result.join(' ');
   }
 
-  // =========================================================================
-  //  MLA 9th
-  // =========================================================================
+  /** 将 "1" / "Jan" / "February" → "Feb." (IEEE 标准缩写) */
+  function getMonthAbbr(m) {
+    if (!m) return '';
+    var key = String(m).trim().toLowerCase();
+    var map = {
+      '1': 'Jan', '01': 'Jan', 'jan': 'Jan', 'january': 'Jan',
+      '2': 'Feb', '02': 'Feb', 'feb': 'Feb', 'february': 'Feb',
+      '3': 'Mar', '03': 'Mar', 'mar': 'Mar', 'march': 'Mar',
+      '4': 'Apr', '04': 'Apr', 'apr': 'Apr', 'april': 'Apr',
+      '5': 'May', '05': 'May', 'may': 'May',
+      '6': 'Jun', '06': 'Jun', 'jun': 'Jun', 'june': 'Jun',
+      '7': 'Jul', '07': 'Jul', 'jul': 'Jul', 'july': 'Jul',
+      '8': 'Aug', '08': 'Aug', 'aug': 'Aug', 'august': 'Aug',
+      '9': 'Sep', '09': 'Sep', 'sep': 'Sep', 'sept': 'Sep', 'september': 'Sep',
+      '10': 'Oct', 'oct': 'Oct', 'october': 'Oct',
+      '11': 'Nov', 'nov': 'Nov', 'november': 'Nov',
+      '12': 'Dec', 'dec': 'Dec', 'december': 'Dec',
+    };
+    var found = map[key];
+    return found ? found + '.' : '';
+  }
 
+  /** 将月份 → 完整英文 (February) */
+  function getFullMonth(m) {
+    if (!m) return '';
+    var key = String(m).trim().toLowerCase();
+    var map = {
+      '1': 'January', '01': 'January', 'jan': 'January', 'january': 'January',
+      '2': 'February', '02': 'February', 'feb': 'February', 'february': 'February',
+      '3': 'March', '03': 'March', 'mar': 'March', 'march': 'March',
+      '4': 'April', '04': 'April', 'apr': 'April', 'april': 'April',
+      '5': 'May', '05': 'May', 'may': 'May',
+      '6': 'June', '06': 'June', 'jun': 'June', 'june': 'June',
+      '7': 'July', '07': 'July', 'jul': 'July', 'july': 'July',
+      '8': 'August', '08': 'August', 'aug': 'August', 'august': 'August',
+      '9': 'September', '09': 'September', 'sep': 'September', 'sept': 'September', 'september': 'September',
+      '10': 'October', 'oct': 'October', 'october': 'October',
+      '11': 'November', 'nov': 'November', 'november': 'November',
+      '12': 'December', 'dec': 'December', 'december': 'December',
+    };
+    return map[key] || '';
+  }
+
+  /** 将 DOI 号规范化为 URL (若已是 http 开头则原样返回) */
+  function formatDOI(doiRaw) {
+    if (!doiRaw || doiRaw.length === 0) return '';
+    var s = doiRaw.trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    return 'https://doi.org/' + s.replace(/^doi:\s*/i, '');
+  }
+
+  // =========================================================
+  //  APA 7th
+  // =========================================================
   /**
-   * MLA 9th 格式。
+   * APA 7th 期刊论文引用。
    *
-   * 期刊:  Author. "Title." Journal, vol. Vol, no. Issue, Year, pp. Pages.
+   * 标准：
+   *   Author, A. B., & Author, C. D. (Year). Title of paper.
+   *   Journal Name, Volume(Issue), page-page. https://doi.org/xxxx
+   *
+   * 大小写：文章标题 sentence case；期刊名 title case + 斜体。
+   *
+   * @param {Object} item - 文献对象
+   * @return {string}
+   */
+  function formatAPA(item) {
+    var authors = window.CitationAuthor
+      ? window.CitationAuthor.formatAuthorAPA(window.CitationAuthor.parseAuthors(fb(item.authors)))
+      : fb(item.authors);
+
+    var year = fb(item.year);
+    var title = toSentenceCase(fb(item.title));
+    var journal = fb(item.journal);
+    var volume = fb(item.volume);
+    var issue = fb(item.issue);
+    var pages = fb(item.pages);
+    var articleNo = fb(item.articleNo);
+    var doi = formatDOI(fb(item.doi));
+
+    var out = [];
+
+    if (authors) out.push(authors);
+    if (year) out.push(' (' + year + ')');
+    else out.push(' (n.d.)');
+    out.push('. ' + title + '.');
+
+    if (journal) {
+      out.push(' ' + journal);
+      if (volume) {
+        out.push(', ' + volume);
+        if (issue) out.push('(' + issue + ')');
+      }
+      if (pages) out.push(', ' + pages);
+      else if (articleNo) out.push(', Article ' + articleNo);
+      out.push('.');
+    }
+
+    if (doi) out.push(' ' + doi);
+
+    return out.join('');
+  }
+
+  // =========================================================
+  //  MLA 9th
+  // =========================================================
+  /**
+   * MLA 9th 期刊论文引用。
+   *
+   * 标准：
+   *   Author Last, First, First Last, and First Last.
+   *   "Title of Article." *Journal Title*, vol. X, no. Y,
+   *   Mmm. YYYY, pp. Z-Z. https://doi.org/xxxx
+   *
+   * 大小写：文章标题 title case + 双引号；期刊名 title case + 斜体。
    *
    * @param {Object} item
    * @return {string}
    */
-  function formatMLA9th(item) {
+  function formatMLA(item) {
     var authors = window.CitationAuthor
-      ? window.CitationAuthor.parseAuthors(fb(item.authors))
-      : [];
-    var authorStr = window.CitationAuthor
-      ? window.CitationAuthor.formatAuthorMLA(authors)
+      ? window.CitationAuthor.formatAuthorMLA(window.CitationAuthor.parseAuthors(fb(item.authors)))
       : fb(item.authors);
 
-    var title = fb(item.title);
-    var journal = fb(item.journal);
-    var year = getYear(item);
+    var title = toTitleCase(fb(item.title));
+    var journal = toTitleCase(fb(item.journal));
     var volume = fb(item.volume);
     var issue = fb(item.issue);
+    var year = fb(item.year);
+    var month = getMonthAbbr(fb(item.month));
     var pages = fb(item.pages);
-    var doi = fb(item.doi);
-    var publisher = fb(item.publisher);
+    var doi = formatDOI(fb(item.doi));
 
-    var parts = [];
-
-    if (authorStr) parts.push(authorStr + '.');
-
-    // 标题用引号
-    parts.push('"' + title + '."');
-
-    // MLA: 期刊 vs 书籍
+    var out = [];
+    out.push(authors + '.');
+    if (title) out.push(' "' + title + '."');
     if (journal) {
-      var sourceParts = [];
-      sourceParts.push(journal);
-      if (volume) sourceParts.push('vol. ' + volume);
-      if (issue) sourceParts.push('no. ' + issue);
-      if (year) sourceParts.push(year);
-      if (pages) sourceParts.push('pp. ' + pages);
-      parts.push(joinWithDelimiter(sourceParts) + '.');
-      if (doi) parts.push('DOI: ' + doi + '.');
-    } else {
-      if (publisher) parts.push(publisher + ',');
-      if (year) parts.push(year + '.');
+      out.push(' ' + journal);
+      var jparts = [];
+      if (volume) jparts.push('vol. ' + volume);
+      if (issue) jparts.push('no. ' + issue);
+      // 日期：月份+年份 或仅年份
+      if (month && year) jparts.push(month + ' ' + year);
+      else if (year) jparts.push(year);
+      if (pages) jparts.push('pp. ' + pages);
+      if (jparts.length > 0) out.push(', ' + jparts.join(', '));
+      out.push('.');
     }
+    if (doi) out.push(' ' + doi);
 
-    return parts.join(' ');
+    return out.join('');
   }
 
-  // =========================================================================
-  //  Chicago 17th — 作者-日期
-  // =========================================================================
-
+  // =========================================================
+  //  Chicago Author-Date
+  // =========================================================
   /**
-   * Chicago 17th (作者-日期)。
+   * Chicago 作者-日期 期刊论文引用。
    *
-   * 期刊:  Author. Year. "Title." Journal Vol (Issue): Pages. DOI
+   * 标准：
+   *   Author, First, First Last, and First Last. Year.
+   *   "Title of Article." Journal Title Volume, no. Issue
+   *   (Month): pages. https://doi.org/xxxx
+   *
+   * 大小写：文章标题 title case + 双引号；期刊 title case + 斜体；卷号无逗号跟期刊。
    *
    * @param {Object} item
    * @return {string}
    */
   function formatChicagoAuthorDate(item) {
     var authors = window.CitationAuthor
-      ? window.CitationAuthor.parseAuthors(fb(item.authors))
-      : [];
-    var authorStr = window.CitationAuthor
-      ? window.CitationAuthor.formatAuthorChicago(authors)
+      ? window.CitationAuthor.formatAuthorChicago(window.CitationAuthor.parseAuthors(fb(item.authors)))
       : fb(item.authors);
 
-    var title = fb(item.title);
-    var journal = fb(item.journal);
-    var year = getYear(item);
+    var title = toTitleCase(fb(item.title));
+    var journal = toTitleCase(fb(item.journal));
+    var year = fb(item.year);
+    var month = getFullMonth(fb(item.month));
     var volume = fb(item.volume);
     var issue = fb(item.issue);
     var pages = fb(item.pages);
-    var doi = fb(item.doi);
-    var publisher = fb(item.publisher);
+    var articleNo = fb(item.articleNo);
+    var doi = formatDOI(fb(item.doi));
 
-    var parts = [];
+    var out = [];
+    out.push(authors);
+    if (year) out.push('. ' + year);
+    else out.push('.');
+    if (title) out.push('. "' + title + '."');
 
-    if (authorStr) parts.push(authorStr + '.');
-    parts.push(year + '.');
-
-    // 标题用引号
-    parts.push('"' + title + '."');
-
-    // 来源: 期刊 vs 书籍
     if (journal) {
-      var sourceParts = [journal];
-      var volIssueStr = volume;
-      if (issue) volIssueStr += ' (' + issue + ')';
-      if (volIssueStr) sourceParts.push(volIssueStr);
-      if (pages) sourceParts.push(': ' + pages);
-      parts.push(joinWithDelimiter(sourceParts) + '.');
-      if (doi) parts.push('https://doi.org/' + doi + '.');
-    } else {
-      if (publisher) parts.push(publisher + '.');
+      out.push(' ' + journal);
+      var after = [];
+      if (volume) after.push(' ' + volume);
+      if (issue) after.push(', no. ' + issue);
+      // (Month): pages
+      if (pages || articleNo) {
+        var parentPart = '';
+        if (month) parentPart = month;
+        var pageStr = pages ? pages : 'Article ' + articleNo;
+        if (parentPart) after.push(' (' + parentPart + '): ' + pageStr);
+        else after.push(': ' + pageStr);
+      } else if (month) {
+        after.push(' (' + month + ')');
+      }
+      out.push(after.join('') + '.');
+    } else if (pages || articleNo) {
+      out.push(': ' + (pages || ('Article ' + articleNo)));
     }
 
-    return parts.join(' ');
+    if (doi) out.push(' ' + doi);
+
+    return out.join('');
   }
 
-  // =========================================================================
-  //  Chicago 17th — 注释-书目
-  // =========================================================================
-
+  // =========================================================
+  //  Chicago Notes and Bibliography (参考书目)
+  // =========================================================
   /**
-   * Chicago 17th (注释-书目)。
+   * Chicago 注释-书目（参考书目条目）。
    *
-   * 期刊:  Author. "Title." Journal Vol, no. Issue (Year): Pages.
+   * 标准：
+   *   Author Last, First, First Last, and First Last.
+   *   "Title of Article." Journal Title Volume, no. Issue
+   *   (Month Year): pages. https://doi.org/xxxx.
+   *
+   * 区别于 AD 主要是：年份与月份共同放在括号中；无独立年份前置。
    *
    * @param {Object} item
    * @return {string}
    */
   function formatChicagoNotesBib(item) {
     var authors = window.CitationAuthor
-      ? window.CitationAuthor.parseAuthors(fb(item.authors))
-      : [];
-    var authorStr = window.CitationAuthor
-      ? window.CitationAuthor.formatAuthorChicago(authors)
+      ? window.CitationAuthor.formatAuthorChicago(window.CitationAuthor.parseAuthors(fb(item.authors)))
       : fb(item.authors);
 
-    var title = fb(item.title);
-    var journal = fb(item.journal);
-    var year = getYear(item);
+    var title = toTitleCase(fb(item.title));
+    var journal = toTitleCase(fb(item.journal));
+    var year = fb(item.year);
+    var month = getFullMonth(fb(item.month));
     var volume = fb(item.volume);
     var issue = fb(item.issue);
     var pages = fb(item.pages);
-    var publisher = fb(item.publisher);
+    var articleNo = fb(item.articleNo);
+    var doi = formatDOI(fb(item.doi));
 
-    var parts = [];
-
-    if (authorStr) parts.push(authorStr + '.');
-    parts.push('"' + title + '."');
+    var out = [];
+    out.push(authors);
+    if (title) out.push('. "' + title + '."');
 
     if (journal) {
-      var sourceParts = [journal];
-      if (volume) sourceParts.push(volume);
-      if (issue) sourceParts.push('no. ' + issue);
-      if (year) sourceParts.push('(' + year + ')');
-      if (pages) sourceParts.push(pages);
-      parts.push(joinWithDelimiter(sourceParts) + '.');
-    } else {
-      if (publisher) parts.push(publisher + ',');
-      if (year) parts.push(year + '.');
+      out.push(' ' + journal);
+      var after = [];
+      if (volume) after.push(' ' + volume);
+      if (issue) after.push(', no. ' + issue);
+
+      // (Month Year): pages
+      var dateInParen = '';
+      if (month && year) dateInParen = month + ' ' + year;
+      else if (year) dateInParen = year;
+
+      if (pages || articleNo) {
+        var pageStr = pages ? pages : 'Article ' + articleNo;
+        if (dateInParen) after.push(' (' + dateInParen + '): ' + pageStr);
+        else after.push(': ' + pageStr);
+      } else if (dateInParen) {
+        after.push(' (' + dateInParen + ')');
+      }
+      out.push(after.join('') + '.');
     }
 
-    return parts.join(' ');
+    if (doi) out.push(' ' + doi);
+
+    return out.join('');
   }
 
-  // =========================================================================
+  // =========================================================
   //  GB/T 7714-2015
-  // =========================================================================
-
+  // =========================================================
   /**
-   * GB/T 7714-2015。
+   * GB/T 7714-2015 顺序编码制 —— 期刊论文条目本体。
    *
-   * 中文期刊: 作者. 题名[J]. 刊名, 年, 卷(期): 页码. DOI.
-   * 英文期刊: AUTHOR A, AUTHOR B. Title[J]. Journal, Year, Volume(Issue): Pages. DOI.
+   * 标准（期刊论文）：
+   *   作者. 文献题名[J]. 刊名, 出版年, 卷(期): 起止页码. DOI
+   *   英文作者：FAMILY A B, FAMILY2 C D.
+   *   >3 位作者：前 3 位 + ", 等" / ", et al"
    *
-   * 内部通过 CitationLang.detectLanguage(title) 自动切换中/英文子格式。
+   * 本函数返回不带 [序号] 前缀的条目正文。编号由调用方统一添加。
    *
    * @param {Object} item
    * @return {string}
    */
   function formatGBT7714(item) {
-    var title = fb(item.title);
-    var isChinese = window.CitationLang
-      ? window.CitationLang.detectLanguage(title) === 'zh'
-      : false;
-
     var authors = window.CitationAuthor
-      ? window.CitationAuthor.parseAuthors(fb(item.authors))
-      : [];
-    var authorStr = window.CitationAuthor
-      ? window.CitationAuthor.formatAuthorGB776(authors)
+      ? window.CitationAuthor.formatAuthorGB776(window.CitationAuthor.parseAuthors(fb(item.authors)))
       : fb(item.authors);
 
+    var title = fb(item.title);
     var journal = fb(item.journal);
     var year = fb(item.year);
     var volume = fb(item.volume);
     var issue = fb(item.issue);
     var pages = fb(item.pages);
-    var doi = fb(item.doi);
-    var refType = GB_TYPE_MAP[inferType(item)] || 'M';
+    var doi = formatDOI(fb(item.doi));
 
-    if (isChinese) {
-      // 中文子格式 — 全角标点
-      var zhParts = [];
-      if (authorStr) zhParts.push(authorStr);
-      zhParts.push(title + '[' + refType + '].');
-
-      var zhSourceParts = [];
-      if (journal) zhSourceParts.push(journal);
-      if (year) zhSourceParts.push(year);
-      var volIssueZh = '';
-      if (volume) volIssueZh = volume;
-      if (issue) volIssueZh += '(' + issue + ')';
-      if (volIssueZh) zhSourceParts.push(volIssueZh);
-      if (pages) zhSourceParts.push(pages);
-      zhParts.push(zhSourceParts.join(', ') + '.');
-
-      if (doi) zhParts.push('DOI: ' + doi + '.');
-
-      return zhParts.join(' ');
+    var out = [];
+    out.push(authors + '.');
+    if (title) out.push(' ' + title + '[J].');
+    if (journal) {
+      out.push(' ' + journal);
+      var jparts = [];
+      if (year) jparts.push(year);
+      if (volume && issue) jparts.push(volume + '(' + issue + ')');
+      else if (volume) jparts.push(volume);
+      else if (issue) jparts.push('(' + issue + ')');
+      if (jparts.length > 0) out.push(', ' + jparts.join(', '));
+      if (pages) out.push(': ' + pages);
+      out.push('.');
     }
+    if (doi) out.push(' ' + doi + '.');
 
-    // 英文子格式 — 半角标点
-    var enParts = [];
-    if (authorStr) enParts.push(authorStr);
-    enParts.push(title + '[' + refType + '].');
-
-    var enSourceParts = [];
-    if (journal) enSourceParts.push(journal);
-    if (year) enSourceParts.push(String(year));
-    var volIssueEn = '';
-    if (volume) volIssueEn = volume;
-    if (issue) volIssueEn += '(' + issue + ')';
-    if (volIssueEn) enSourceParts.push(volIssueEn);
-    if (pages) enSourceParts.push(pages);
-    enParts.push(enSourceParts.join(', ') + '.');
-
-    if (doi) enParts.push('DOI: ' + doi + '.');
-
-    return enParts.join(' ');
+    return out.join('');
   }
 
-  // =========================================================================
+  // =========================================================
   //  IEEE
-  // =========================================================================
-
+  // =========================================================
   /**
-   * IEEE 格式。
+   * IEEE 期刊论文引用（单条，不带编号）。
    *
-   *   期刊: [N] A. Author, "Title," Journal, vol. Vol, no. Issue, pp. Pages, Year.
+   * 标准：
+   *   A. B. Author, C. D. Author, and E. F. Author,
+   *   "Title of paper," *Journal Name*, vol. X, no. Y,
+   *   pp. Z-Z, Mmm. YYYY. doi: 10.xxx/yyy
    *
-   * 编号 [N] 由批量生成时统一分配，单条调用时固定为 [1]。
+   * 特殊：
+   *   - 无页码 → 用 Art. no. XXXX
+   *   - 无卷号期号页码 → 用 Early Access 替代
+   *   - 编号 ([1]) 由批量生成的调用方添加
    *
    * @param {Object} item
-   * @param {number} [index=1] - 引用编号
    * @return {string}
    */
-  function formatIEEE(item, index) {
-    if (index === undefined) index = 1;
-
+  function formatIEEE(item) {
     var authors = window.CitationAuthor
-      ? window.CitationAuthor.parseAuthors(fb(item.authors))
-      : [];
-    var authorStr = window.CitationAuthor
-      ? window.CitationAuthor.formatAuthorIEEE(authors)
+      ? window.CitationAuthor.formatAuthorIEEE(window.CitationAuthor.parseAuthors(fb(item.authors)))
       : fb(item.authors);
 
-    var title = fb(item.title);
-    var journal = fb(item.journal);
+    var title = toSentenceCase(fb(item.title));
+    var journal = toTitleCase(fb(item.journal));
     var year = fb(item.year);
+    var month = getMonthAbbr(fb(item.month));
     var volume = fb(item.volume);
     var issue = fb(item.issue);
     var pages = fb(item.pages);
+    var articleNo = fb(item.articleNo);
     var doi = fb(item.doi);
-    var publisher = fb(item.publisher);
 
-    var parts = [];
-
-    if (authorStr) parts.push(authorStr + ',');
-
-    parts.push('"' + title + ',"');
+    var out = [];
+    if (authors) out.push(authors + ',');
+    if (title) out.push(' "' + title + ',"');
 
     if (journal) {
-      var sourceParts = [];
-      sourceParts.push(journal);
-      if (volume) sourceParts.push('vol. ' + volume);
-      if (issue) sourceParts.push('no. ' + issue);
-      if (pages) sourceParts.push('pp. ' + pages);
-      if (year) sourceParts.push(String(year));
-      parts.push(joinWithDelimiter(sourceParts) + '.');
-      if (doi) parts.push('doi: ' + doi + '.');
-    } else {
-      if (publisher) parts.push(publisher + ',');
-      if (year) parts.push(year + '.');
+      out.push(' ' + journal);
+      var jparts = [];
+      if (volume) {
+        jparts.push('vol. ' + volume);
+        if (issue) jparts.push('no. ' + issue);
+        if (pages) jparts.push('pp. ' + pages);
+        else if (articleNo) jparts.push('Art. no. ' + articleNo);
+      } else if (pages) {
+        jparts.push('pp. ' + pages);
+      } else if (articleNo) {
+        jparts.push('Art. no. ' + articleNo);
+      } else {
+        jparts.push('Early Access');
+      }
+
+      var dateStr = '';
+      if (month && year) dateStr = month + ' ' + year;
+      else if (year) dateStr = year;
+      if (dateStr) jparts.push(dateStr);
+
+      out.push(', ' + jparts.join(', ') + '.');
     }
 
-    return parts.join(' ');
+    if (doi) out.push(' doi: ' + doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, '') + '.');
+
+    return out.join('');
   }
 
-  // =========================================================================
-  //  注册所有格式
-  // =========================================================================
-
-  formatMap.set('APA 7th', formatAPA7th);
-  formatMap.set('MLA 9th', formatMLA9th);
-  formatMap.set('Chicago 17th (作者-日期)', formatChicagoAuthorDate);
-  formatMap.set('Chicago 17th (注释-书目)', formatChicagoNotesBib);
-  formatMap.set('GB/T 7714-2015', formatGBT7714);
-  formatMap.set('IEEE', formatIEEE);
-
-  // ---- 暴露全局 API ----
-  window.CitationFormats = formatMap;
+  // =========================================================
+  //  注册 —— 供 citation-engine.js 调用
+  // =========================================================
+  window.CitationFormats = {
+    'APA 7th': formatAPA,
+    'MLA 9th': formatMLA,
+    'Chicago Author-Date': formatChicagoAuthorDate,
+    'Chicago Notes and Bibliography': formatChicagoNotesBib,
+    'GB/T 7714-2015': formatGBT7714,
+    'IEEE': formatIEEE,
+  };
 })();
