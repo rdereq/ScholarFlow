@@ -1464,84 +1464,57 @@ function cleanupPdfBlobUrl() {
 // PDF 上传处理
 // ============================================================
 
-/**
- * 处理 PDF 文件上传
- */
-function handlePdfUpload(event) {
-  const file = event.target.files[0];
+function _processPdfFile(file) {
   if (!file) return;
-  
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) return;
-  
-  const MAX_PDF_SIZE = 100 * 1024 * 1024;
-  if (file.size > MAX_PDF_SIZE) {
-    alert(t('pdfTooLarge') || 'PDF file is too large. Maximum size is 100MB.');
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    alert('请选择 PDF 文件');
     return;
   }
-  
-  const litId = currentDetailId;
-  if (!litId) return;
-  
-  const reader = new FileReader();
-  
+  if (file.size > 100 * 1024 * 1024) {
+    alert('文件过大（超过 100MB），请选择较小的 PDF 文件');
+    return;
+  }
+  if (!window.DOIClient) var _dummy = null; // 静默使用全局上下文
+  if (typeof currentDetailId === 'undefined' || !currentDetailId) {
+    console.warn('[PDF] 当前未打开文献详情页');
+    return;
+  }
+  var reader = new FileReader();
   reader.onload = function(e) {
-    const data = e.target.result;
-    storePdfData(litId, data).then(() => {
-      const lit = appData.literature.find(l => l.id === litId);
+    storePdfData(currentDetailId, e.target.result).then(function() {
+      var lit = appData.literature.find(function(l) { return l.id === currentDetailId; });
       if (lit) {
         lit.pdfFileName = file.name;
         saveData();
       }
-      renderPdfViewerArea(litId);
+      renderPdfViewerArea(currentDetailId);
+    }).catch(function(err) {
+      console.error('[PDF] 存储失败:', err);
+      alert('PDF 存储失败: ' + (err.message || err));
     });
   };
-  
-  reader.onerror = function() {
-    console.error('[PDF] 读取文件失败');
-  };
-  
+  reader.onerror = function() { console.error('[PDF] 文件读取失败'); alert('PDF 读取失败'); };
   reader.readAsArrayBuffer(file);
+}
+
+/**
+ * 处理 PDF 文件上传
+ */
+function handlePdfUpload(event) {
+  var file = event.target.files && event.target.files[0];
+  if (file) _processPdfFile(file);
+  // 重置 input，允许重新上传同一文件
+  event.target.value = '';
 }
 
 /**
  * 处理 PDF 文件拖放上传
  */
 function handlePdfDrop(event) {
-  const files = event.dataTransfer.files;
-  if (!files.length) return;
-  
-  const file = files[0];
-  
-  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) return;
-  
-  const MAX_PDF_SIZE = 100 * 1024 * 1024;
-  if (file.size > MAX_PDF_SIZE) {
-    alert(t('pdfTooLarge') || 'PDF file is too large. Maximum size is 100MB.');
-    return;
-  }
-  
-  const litId = currentDetailId;
-  if (!litId) return;
-  
-  const reader = new FileReader();
-  
-  reader.onload = function(e) {
-    const data = e.target.result;
-    storePdfData(litId, data).then(() => {
-      const lit = appData.literature.find(l => l.id === litId);
-      if (lit) {
-        lit.pdfFileName = file.name;
-        saveData();
-      }
-      renderPdfViewerArea(litId);
-    });
-  };
-  
-  reader.onerror = function() {
-    console.error('[PDF] 读取文件失败');
-  };
-  
-  reader.readAsArrayBuffer(file);
+  var files = event.dataTransfer && event.dataTransfer.files;
+  if (!files || !files.length) return;
+  var file = files[0];
+  if (file) _processPdfFile(file);
 }
 
 /**

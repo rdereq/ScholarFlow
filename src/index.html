@@ -150,6 +150,7 @@ SCRIPT MODULES - 加载顺序很重要！
 <script src="./js/pages/settings.js"></script>
 
 <!-- CRUD操作和数据管理模块 -->
+<script src="./js/doi-client.js"></script>
 <script src="./js/crud.js"></script>
 
 <!-- PDF阅读器模块 (v1.3) -->
@@ -164,6 +165,9 @@ SCRIPT MODULES - 加载顺序很重要！
 <script src="./js/citation/citation-export.js"></script>
 <script src="./js/citation/citation-ui.js"></script>
 <script src="./js/citation/citation-templates.js"></script>
+
+<!-- 多格式导入/导出 (v1.4) -->
+<script src="./js/import-export.js"></script>
 
 <!-- 自动更新模块 -->
 <script src="./js/updater.js"></script>
@@ -182,26 +186,33 @@ SCRIPT MODULES - 加载顺序很重要！
  */
 (async () => {
   try {
-    // 初始化当前用户（获取用户 ID 用于数据隔离）
+    // 1. 初始化当前用户（获取用户 ID 用于数据隔离）
     const currentUser = await initCurrentUser();
-    
-    // 加载保存的数据
-    await loadData();
-    
-    // 初始化演示数据（首次运行时使用）
-    initDemoData();
-    
-    // 渲染界面
+    if (!currentUser) {
+      console.warn('[ScholarFlow] 未检测到当前用户，可能需先创建用户');
+    }
+
+    // 2. 加载已保存数据（若存在则跳过初始化）
+    const loaded = await loadData();
+    if (!loaded) {
+      // 仅当无持久化数据时，初始化空数据
+      console.log('[ScholarFlow] 无已保存数据，初始化为空状态');
+      initDemoData();
+    } else {
+      console.log('[ScholarFlow] 已从持久化存储加载数据，共 ' + (appData.literature ? appData.literature.length : 0) + ' 篇文献');
+    }
+
+    // 3. 渲染界面
     renderSidebar();
     renderTopbar();
     switchPage('dashboard');
 
-    // 更新侧边栏用户显示（使用实际用户数据）
+    // 更新侧边栏用户显示
     if (typeof updateSidebarUser === 'function') updateSidebarUser();
 
-    // 初始化自动更新 UI（监听主进程更新事件）
+    // 初始化自动更新 UI
     if (typeof initAutoUpdaterUI === 'function') initAutoUpdaterUI();
-    
+
     console.log('[ScholarFlow] 应用初始化完成');
   } catch (error) {
     console.error('[ScholarFlow] 初始化失败:', error);

@@ -114,12 +114,19 @@ function generateId() {
  */
 async function saveData() {
   try {
+    if (currentUserId === null || currentUserId === undefined) {
+      console.error('[Save Error] currentUserId is null, cannot save data. User may not be initialized yet.');
+      return;
+    }
     const dataStr = JSON.stringify(appData);
     // 验证数据大小不超过50MB
     if (dataStr.length > 50 * 1024 * 1024) {
       console.warn('[Save] Data size exceeds safe limit, attempting anyway...');
     }
-    await window.electronAPI.store.set('scholarflow_data_' + currentUserId, dataStr);
+    const storeKey = 'scholarflow_data_' + currentUserId;
+    console.log(`[Save] 保存数据到 key=${storeKey}, 文献数=${appData.literature ? appData.literature.length : 0}, 大小=${Math.round(dataStr.length / 1024)}KB`);
+    await window.electronAPI.store.set(storeKey, dataStr);
+    console.log('[Save] ✓ 数据保存成功');
   } catch (e) {
     console.error('[Save Error]', e);
     alert(t('saveError') || 'Failed to save data. Please try again.');
@@ -135,7 +142,9 @@ async function saveData() {
  */
 async function loadData() {
   try {
-    const saved = await window.electronAPI.store.get('scholarflow_data_' + currentUserId);
+    const storeKey = 'scholarflow_data_' + currentUserId;
+    console.log(`[Load] 从 key=${storeKey} 加载数据`);
+    const saved = await window.electronAPI.store.get(storeKey);
     if (saved && typeof saved === 'string' && saved.length > 0) {
       let parsed;
       try {
@@ -146,18 +155,44 @@ async function loadData() {
       }
       if (!parsed || typeof parsed !== 'object') return false;
 
-      // 验证核心字段类型，使用安全默认值替代缺失/损坏的字段
-      appData = {
-        literature: Array.isArray(parsed.literature) ? parsed.literature : [],
-        notes: Array.isArray(parsed.notes) ? parsed.notes : [],
-        tags: Array.isArray(parsed.tags) ? parsed.tags : [],
-        folders: Array.isArray(parsed.folders) ? parsed.folders : [],
-        readingSessions: Array.isArray(parsed.readingSessions) ? parsed.readingSessions : [],
-        goals: (parsed.goals && typeof parsed.goals === 'object') ? parsed.goals : { daily: 2, weekly: 10, weeklyHours: 10, monthlyHours: 20 },
-        settings: (parsed.settings && typeof parsed.settings === 'object') ? parsed.settings : { theme: 'light', noteTemplates: [] }
-      };
+      // 安全修复 [ELEC-012]: 必须**原地修改** appData，不能重新赋值
+      // - 其他模块通过 `window.appData` 引用了初始 appData 对象
+      // - 若用 `appData = {...}` 重新赋值，则本地变量指向新对象，但 window.appData 仍指向旧对象
+      // - 导致 UI 渲染、saveData 等操作读到的是不同对象，数据持久化失效
+      appData.literature = Array.isArray(parsed.literature) ? parsed.literature : [];
+      appData.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
+      appData.tags = Array.isArray(parsed.tags) ? parsed.tags : [];
+      appData.folders = Array.isArray(parsed.folders) ? parsed.folders : [];
+      appData.readingSessions = Array.isArray(parsed.readingSessions) ? parsed.readingSessions : [];
+      appData.goals = (parsed.goals && typeof parsed.goals === 'object') ? parsed.goals : { daily: 2, weekly: 10, weeklyHours: 10, monthlyHours: 20 };
+      appData.settings = (parsed.settings && typeof parsed.settings === 'object') ? parsed.settings : { theme: 'light', noteTemplates: [] };
+
+      // 同步 window.appData（确保通过 window 访问时也拿到同样对象）
+      if (typeof window !== 'undefined') {
+        window.appData = appData;
+      }
+
+      // 数据迁移 v1.4.0+：确保 tags 字段从 keywords 派生
+      let migratedCount = 0;
+      appData.literature.forEach(function (lit) {
+        if (!lit) return;
+        const hasTags = Array.isArray(lit.tags) && lit.tags.length > 0;
+        const hasKeywords = Array.isArray(lit.keywords) && lit.keywords.length > 0;
+        if (!hasTags && hasKeywords) {
+          lit.tags = lit.keywords.slice();
+          migratedCount++;
+        } else if (!Array.isArray(lit.tags)) {
+          lit.tags = [];
+        }
+        if (!Array.isArray(lit.keywords)) lit.keywords = [];
+      });
+      if (migratedCount > 0) {
+        console.log('[Data Migration] 已为 ' + migratedCount + ' 篇文献从 keywords 派生出 tags');
+      }
+      console.log(`[Load] ✓ 数据加载成功，共 ${appData.literature.length} 篇文献`);
       return true;
     }
+    console.log('[Load] 无已保存数据');
   } catch (e) {
     console.error('[Load Error]', e);
   }
@@ -230,14 +265,21 @@ function escapeAttr(str) {
 /**
  * 初始化演示数据
  * 首次运行应用程序时，将数据初始化为空状态
+ * 安全修复 [ELEC-012]: 必须原地修改 appData 对象，不能重新赋值
  */
 function initDemoData() {
-  // Start with empty data — no sample content
   appData.literature = [];
   appData.notes = [];
   appData.tags = [];
   appData.folders = [];
   appData.readingSessions = [];
+  appData.goals = { daily: 2, weekly: 10, weeklyHours: 10, monthlyHours: 20 };
+  appData.settings = { theme: 'light', noteTemplates: [] };
+  // 同步 window.appData 引用
+  if (typeof window !== 'undefined') {
+    window.appData = appData;
+  }
+  console.log('[Init] 已初始化为空数据状态');
   saveData();
 }
 

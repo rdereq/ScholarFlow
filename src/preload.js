@@ -14,6 +14,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('window:close'),
   // 文件选择（用于PDF上传）
   selectFile: (filters) => ipcRenderer.invoke('dialog:selectFile', filters),
+  // 多文件选择（用于批量导入）
+  selectMultiFile: (filters) => ipcRenderer.invoke('dialog:selectMultiFile', filters),
+  // 文件夹选择（用于批量导入 PDF 文件夹）
+  selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
+  // 文件读取（用于批量导入时解析 BibTeX/RIS/XML/CSV/PDF）
+  file: {
+    readAsText: (filePath) => ipcRenderer.invoke('file:readAsText', filePath),
+    readAsBase64: (filePath) => ipcRenderer.invoke('file:readAsBase64', filePath),
+    listPDFs: (folderPath) => ipcRenderer.invoke('file:listPDFs', folderPath)
+  },
   // 应用信息
   app: {
     getVersion: () => ipcRenderer.invoke('app:getVersion')

@@ -82,8 +82,7 @@
   window.Citation = Citation;
 
   // ---- 自动注册 citation-formats.js 中预定义的所有格式 ----
-  if (window.CitationFormats && typeof window.CitationFormats === 'object' &&
-      typeof window.CitationFormats !== null) {
+  if (window.CitationFormats && typeof window.CitationFormats === 'object') {
     var src = window.CitationFormats;
     var keys = Object.keys(src);
     for (var k = 0; k < keys.length; k++) {

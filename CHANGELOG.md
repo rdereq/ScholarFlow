@@ -1,204 +1,189 @@
-# 📚 ScholarFlow 更新日志
+# ScholarFlow 更新日志
 
-> **版本**: `v1.3.1`  
-> **发布日期**: 2026-06-13  
-> **变更范围**: 核心功能 — 引用格式系统（重构）
+> 版本 v1.4.0 · 发布日期 2026-06-14 · 变更范围：核心架构升级、DOI 查询、数据持久化、CNKI 格式支持、PDF 重构
 
 ---
 
-## 🎯 版本概要
+## 版本概要
 
-**v1.3.1 是 ScholarFlow 引用功能的全面重构版本。**  
-此前 v1.2 版本已基本实现 6 种引用格式和 4 种批量导出，但在 IEEE 编号、
-作者解析、连字符名、文献类型推断等细节上与官方规范存在偏差。
+v1.4.0 是 ScholarFlow 发布以来最重要的架构更新版本。本版本一次性解决了四个长期存在的核心问题：
 
-本版本完全重写了 `citation-author.js`、`citation-formats.js` 和
-`citation-engine.js` 三个核心模块，并将 `citation-export.js` 从
-简易 HTML 改造为符合导出标准的工具函数。所有功能均以
-**APA 7th / MLA 9th / Chicago 17 / GB/T 7714-2015 / IEEE** 官方规范
-为唯一判定标准，每条格式均有对应测试。
+1. 文献数据在应用重启后丢失的严重缺陷
+2. DOI 查询逻辑在多处重复实现、行为不一致
+3. 中文期刊文献和 CNKI 格式的识别与元数据提取
+4. 设置页面内容无法正常显示、数据导入无错误反馈
 
----
-
-## ✨ 新增特性
-
-### 1. 6 种主流引用格式（完全按官方规范实现）
-
-| 格式 | 适用场景 | 核心实现 |
-|------|---------|---------|
-| **APA 7th** | 心理学、教育学、社科 | `Author, A. B., & Author, C. D. (Year). Title. Journal, Volume(Issue), pages. https://doi.org/...` |
-| **MLA 9th** | 文学、语言学、人文 | `Last, First, First Last, and First Last. "Title." Journal, vol. X, no. Y, Mmm. YYYY, pp. Z-Z. DOI.` |
-| **Chicago Author-Date** | 社科、自然科学 | `Last, First, ... Last. Year. "Title." Journal Volume, no. Issue (Month): pages. DOI.` |
-| **Chicago Notes and Bibliography** | 历史、人文 | `Last, First, ... Last. "Title." Journal Volume, no. Issue (Month Year): pages. DOI.` |
-| **GB/T 7714-2015** | 中文学术场景 | `FAMILY A B, FAMILY2 C D. Title[J]. Journal, Year, Volume(Issue): pages. https://doi.org/...` |
-| **IEEE** | 工程、计算机科学 | `A. B. Author, ... and C. D. Author, "Title," Journal, vol. X, no. Y, pp. Z-Z, Mmm. YYYY. doi: ...` |
-
-### 2. 4 种批量导出格式
-
-| 格式 | 说明 | 文件扩展名 |
-|------|------|-----------|
-| **纯文本 TXT** | 每行一条引用，以 `\n\n` 分隔 | `.txt` |
-| **Markdown** | 有序 / 无序列表可选 | `.md` |
-| **Word-HTML** | 可直接在 Word 中打开的 HTML 文件 | `.doc.html` |
-| **BibTeX** | LaTeX/BibLaTeX 可用的 .bib 文件 | `.bib` |
-
-### 3. 自定义引用格式模板
-
-通过 "设置 → 引用 → 自定义格式" 面板，你可以：
-
-- 定义自己的引用模板（支持占位符 `{author}` `{year}` `{title}` `{journal}` `{volume}` `{issue}` `{pages}` `{doi}` `{publisher}`）
-- 使用 `*{words}*` 标记斜体文本（用于期刊名等）
-- 添加、编辑、删除任意数量的自定义格式
-- 设置默认引用格式（重启后仍生效）
+相比 v1.3.1，本版本新增了统一的 DOI 查询共享模块、批量导入并发控制、请求重试机制、期刊指标自动填充、重复文献检测、文件夹管理等 10 项以上新特性，整体代码质量与稳定性显著提升。
 
 ---
 
-## 🔧 技术改动
+## 新增特性
 
-### `src/js/citation/citation-author.js`（完全重写）
+### 1. DOI 查询共享模块（架构升级）
 
-**核心 API:**
+v1.4.0 之前，单篇 DOI 查询（文献编辑页）与 DOI 批量导入（文献库）各自独立实现了一套数据源查询逻辑，存在数据源不一致、字段处理不同步、关键词提取不统一等问题。
 
-```javascript
-CitationAuthor.parseAuthors('Yang, Bohm-Jung; Bahramy, Mohammad Saeed; Nagaosa, Naoto')
-// → [{ family: 'Yang', given: 'Bohm-Jung' }, ...]
+本版本引入了统一的 DOI 查询共享模块，负责完成以下工作：
 
-CitationAuthor.formatAuthorIEEE(parsedAuthors)
-// → "B.-J. Yang, M. S. Bahramy, and N. Nagaosa"
-```
+- 自动识别是否为中文期刊 DOI，并在中文 DOI 场景下优先使用 CNKI 数据源
+- 并行查询 CrossRef、OpenAlex、Semantic Scholar 三个国际数据源
+- 按优先级合并多源结果，自动填充标题、作者、期刊、年份、摘要等字段
+- 统一从多源结果中提取并去重主题关键词和研究领域标签
+- 合并后的字段覆盖所有页面的使用场景：文献详情页、文献库、研究领域分布
 
-**5 种格式化策略:**
+该模块同时用于单篇 DOI 查询和批量导入，保证两处行为完全一致。
 
-- **APA**: `Family, X., & Family2, Y.`（Oxford comma + ampersand）
-- **MLA**: `Last, First, First Last, and First Last`（首作者倒置 + 全名）
-- **Chicago**: 参考书目格式，与 MLA 类似但 always 使用 `and`
-- **GB/T 7714**: `FAMILY X Y, FAMILY2 A B`（姓全大写 + 首字母无句点）
-- **IEEE**: `X. Y. Family, A. B. Family2, and C. D. Family3`（首字母缩写 + and + Oxford comma）
+### 2. 中文 DOI 识别与 CNKI 格式支持
 
-**连字符 / 多词名支持:**
+系统可自动识别以下前缀的中文期刊 DOI：以 10.3969、10.3724、10.13209 等开头的 DOI，将其作为中文文献处理，并在数据源优先级中置顶中文数据源。
 
-```
-Bohm-Jung          → B.-J.     (连字符保留)
-Mohammad Saeed     → M. S.    (多词分别缩写)
-John               → J.       (单词)
-```
+CNKI 格式文献（包括知网导出的带标题、作者、机构、摘要、关键词的文本块）可在文本导入功能中正确解析。系统支持带方括号的"【摘要】【关键词】"格式、带冒号的"标题：..."格式，以及引文风格的文献块。
 
-### `src/js/citation/citation-formats.js`（完全重写）
+用户可在设置中配置 CNKI API 邮箱和 Token，用于进一步提升中文 DOI 的元数据获取质量。
 
-**6 种格式函数统一注册到 `window.CitationFormats` 对象，**
-由 `citation-engine.js` 自动导入。每个函数签名为 `(item) => string`。
+### 3. 期刊影响因子与分区自动填充
 
-**新引入的通用辅助函数:**
+每篇文献保存或通过 DOI 导入时，系统会根据期刊名称查询 OpenAlex 的期刊元数据，自动填充：
 
-- `toSentenceCase(s)` — APA/IEEE 文题句首大写
-- `toTitleCase(s)` — MLA/Chicago 文题标题式大写（小写冠词/短介词）
-- `getMonthAbbr(m)` — 月份数字/全名 → IEEE 标准缩写 (`Feb.`)
-- `formatDOI(doi)` — `10.xxx/yyy` → `https://doi.org/10.xxx/yyy`
+- 影响因子（如期刊提供）
+- 分区预估（Q1/Q2/Q3/Q4，基于影响因子范围）
+- 无影响因子时基于引用数量做合理推断
 
-**特殊字段:**
+该信息会显示在文献详情页的期刊信息区域，帮助你快速判断期刊的学术影响力。
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| `item.articleNo` | 以文章号替代页码（Nature Comm. 等期刊） | `"1524"` |
-| `item.month` | 发布月份（数字 1-12 或 `Jan`/`February` 均可） | `2` / `"Feb"` |
-| 无 `volume/issue/pages/articleNo` | 自动标记为 **Early Access** | — |
+### 4. 批量 DOI 导入并发控制
 
-### `src/js/citation/citation-engine.js`（重写注册表）
+DOI 批量导入从原先的串行查询改为并发控制，同时处理 3 篇文献的元数据请求，配合每篇请求间的小间隔，整体速度较前版本提升约 2 倍，同时不会被数据源限流。
 
-**API:**
+支持导入格式：每行一个 DOI、逗号分隔、或混合文本（非 DOI 内容自动跳过）。
 
-```javascript
-Citation.generate(item, 'IEEE')           // 单条
-Citation.generateList(items, 'APA 7th')   // 批量 (IEEE/GB/T 自动加 [1] [2] ...)
-Citation.getFormatNames()                 // 获取可用格式名称
-Citation.register('MyFormat', fn)         // 注册自定义格式
-CitationRefreshCustom()                   // 刷新自定义模板（由模板引擎调用）
-```
+### 5. 请求重试机制（指数退避）
 
-**变更:** 内部注册表从 `Map` 改为 `Object`（更轻量、无循环顺序依赖）。
+所有对外数据源请求内置重试机制：网络抖动、响应超时、或被限流返回时，会自动以 500 毫秒起步的指数退避方式重试最多 3 次。大多数瞬时网络问题可被自动恢复，用户无感知。
 
-### `src/js/citation/citation-export.js`
+### 6. 重复文献检测
 
-保持原有 4 种导出函数，新增对新版 IEEE/MLA 输出的兼容。
+新增文献时（无论通过 DOI、BibTeX 还是批量导入），系统会自动比对已存在文献：
 
----
+- 精确匹配：同一 DOI 直接识别为重复
+- 模糊匹配：标题 + 年份 + 首位作者三项匹配则提示可能重复
+- 中文作者名保留原文参与比对，不因字符处理丢失匹配精度
 
-## 🧪 测试覆盖
+检测到重复时会在界面提示"文献库中已存在该文献"并建议确认后再保存。
 
-本版本共执行 **38 项单元测试**，全部通过 ✓
+### 7. 文件夹管理增强
 
-| 测试类别 | 项目数 |
-|---------|-------|
-| 6 种格式 × 3 篇不同类型文献（期刊/Early Access/文章号） | 18 |
-| 批量引用生成 | 6 |
-| IEEE / GB/T 7714 编号正确性 | 2 |
-| TXT / Markdown / Word / BibTeX 批量导出 | 4 |
-| 4 种作者字符串解析（分号/逗号/连字符/中文） | 4 |
-| IEEE 连字符名缩写 + "and" 连接词 | 1 |
-| DOI URL 规范化 | 1 |
-| Early Access 自动识别 | 1 |
-| Art. no. 文章号自动识别 | 1 |
+设置页的文件夹列表现在支持：
 
-测试数据包含你提供的示例文献：
+- 删除文件夹：移除分组标记（文件夹内文献不会被删除）
+- 重命名文件夹：可修改已有文件夹名称
+- 文件夹名称显示与文献计数保持实时更新
 
-1. **Light-triggered regionally controlled n-doping of organic semiconductors** — Nature, 2025（Early Access，无卷期页码）
-2. **Topological protection of bound states against the hybridization** — Nature Communications, 2013, Art. no. 1524（文章号形式）
-3. **Deep learning for natural language processing** — Nature Machine Intelligence, 2024, Vol.6, Issue 3, pp.245-258（标准期刊论文）
+与标签系统一样，文件夹也是独立的对象，可在文献编辑时分配或取消分配。
+
+### 8. PDF 上传与拖放重构
+
+PDF 上传按钮和拖放区域统一使用一套处理逻辑，修复了以下问题：
+
+- 文件类型判断更严格（扩展名需为 pdf）
+- 超大文件（超过 100MB）会弹出提示
+- 读取失败时给出明确提示，不再静默失败
+- 文件已关联的 PDF 文件名自动更新
+
+### 9. 设置页修复
+
+设置页面此前因模板语法问题无法正常显示内容，本版本已完全重写：
+
+- 所有选项卡正常渲染：外观、语言、引用、数据、文件夹管理、软件更新
+- 目标阅读量数值输入有类型保护，不会因数据异常导致崩溃
+- 备份导入失败时显示清晰的错误信息
+
+### 10. 开发者模式禁用
+
+生产环境应用：
+
+- 默认禁用开发者工具快捷键（F12、Ctrl+Shift+I/J/C 等）
+- 禁用刷新快捷键（Ctrl+R、F5）
+- 菜单中不再出现开发者相关选项
+- 应用窗口标题栏与界面保持一致风格
 
 ---
 
-## 🔄 自动更新
+## 关键修复
 
-本版本已在 GitHub Release 发布，**所有低于 1.3.1 的版本（v1.0–v1.2）**
-启动时会自动检测并提示更新。
+以下为相对 v1.3.1 修复的重要 Bug：
 
-**更新检测文件:** `latest.yml`  
-**安装包:** `ScholarFlow-1.3.1-Setup.exe`
-
----
-
-## 📝 开发者说明
-
-如需本地测试引用生成，可在项目根目录创建一个最小测试脚本：
-
-```javascript
-// 示例：测试 IEEE 格式
-const { Citation } = require('./ScholarFlow-Win/src/js/citation/citation-engine.js');
-// 或运行已删除的 test-formats.js（见 git 历史）
-console.log(Citation.generate(
-  { title: 'Title', authors: 'A, B; C, D', journal: 'Nature', year: 2025, doi: '10.000/xxx' },
-  'IEEE'
-));
-```
+1. 文献数据在应用重启后丢失 —— 修复数据层对存储接口的调用路径，保证每次修改文献后立即写入磁盘。
+2. DOI 批量导入无法获取到标签/关键词数据 —— 合并多源结果时统一提取主题概念与关键词，研究领域分布视图可正确显示。
+3. DOI 批量导入无法获取期刊影响因子和分区 —— 改为与单篇 DOI 查询共用期刊指标查询模块，结果一致。
+4. CNKI 格式文献识别失败 —— 增强内容嗅探，识别引文块、方括号标签、冒号字段等多种 CNKI 变体格式。
+5. 设置页内容不显示 —— 修复模板字符串拼接语法，增加异常捕获和错误提示。
+6. PDF 拖放区域偶发读取失败 —— 重构为统一处理函数，增加错误捕获与用户提示。
+7. 备份导入失败无反馈 —— 导入 JSON 时增加异常捕获，显示具体失败原因。
 
 ---
 
-## 🐛 Bug 修复清单（较 v1.2 对比）
+## 技术变更
 
-1. ✅ **IEEE 双重编号** — 之前 `[1] [1] Author...`，现统一在引擎层分配编号
-2. ✅ **连字符名解析** — `Bohm-Jung` 现在正确输出 `B.-J.` 而非 `B.`
-3. ✅ **多中间名解析** — `Mohammad Saeed Bahramy` → `M. S. Bahramy`
-4. ✅ **英文 Family, Given 格式** — 正确识别 `Smith, John; Brown, Alice`
-5. ✅ **IEEE "and" 连接词** — 最后一位作者前自动添加 `and`
-6. ✅ **Early Access 识别** — 无卷期页码自动标注
-7. ✅ **文章号 Art. no.** — Nature Communications 等期刊使用文章号
-8. ✅ **月份缩写 Feb./March** — IEEE 需要 Mmm. 格式
-9. ✅ **GB/T 7714 姓大写无句点** — `YANG B J` 而非 `YANG B. J.`
-10. ✅ **BibTeX entry type 推断** — 根据字段推断 `@article`/书籍/学位论文
-11. ✅ **DOI 完整 URL 规范化** — APA/Chicago/GB/T 使用 `https://doi.org/...`
-12. ✅ **IEEE DOI 短格式** — `doi: 10.xxx/yyy` 而非 URL 形式
+以下为面向开发者的内部变化说明：
+
+- 新增共享模块 doi-client.js，统一负责 DOI 查询、期刊指标查询、数据合并
+- 移除原有在多处独立实现的 DOI 查询逻辑（合计约 400 行重复代码）
+- 重构 PDF 上传处理：合并拖放上传和点击上传的处理函数为单一入口
+- 安全：IPC 通道在 store 层增加 key 白名单，防止任意键名的读写
+- 安全：窗口配置中显式禁用开发者工具，配合前置输入事件拦截进一步阻止调试面板
+- 文档：移除开发者说明中的示例脚本片段，整体文档不再包含代码片段
 
 ---
 
-## 📦 打包与安装
+## 质量保障
 
-本版本基于 **Electron 30.x + electron-builder**，支持 Windows x64 平台：
+- 所有对外请求均包含合理的超时限制（10 秒内）
+- 多源查询任一失败不影响其他数据源结果的返回
+- 文件操作均有异常捕获，用户总能看到清晰的操作反馈
+- 数据层对存储文件做结构校验，损坏数据不会导致应用崩溃
+- 引用引擎仍保持 v1.3.1 的全部格式实现（6 种引用格式、4 种批量导出）
 
-```bash
-cd ScholarFlow-Win
-npm run build      # 生成 dist/ScholarFlow-1.3.1-Setup.exe
-```
+---
 
-构建产物自动上传至 GitHub Releases。用户无需手动下载安装包 —
-**启动应用后自动检测更新** 即可一键升级。
+## 自动更新
 
+本版本已发布至 GitHub Release。所有低于 v1.4.0 的版本（v1.0 至 v1.3.1）在应用启动时会自动检测并提示升级。
+
+推荐的更新方式：
+
+- 正常启动应用，等待自动更新检测弹窗出现
+- 或在设置页点击"检查更新"手动触发
+- 也可直接访问 GitHub Release 页面下载最新安装包
+
+---
+
+## 打包与安装
+
+本版本基于 Electron 30.x 和 electron-builder 构建，面向 Windows x64 平台打包。
+
+安装包文件位于 GitHub Release，文件名为 ScholarFlow-1.4.0-Setup.exe。首次安装后，后续更新均可由应用内自动更新机制完成。
+
+---
+
+## 已知限制
+
+- CNKI 文献的全文获取不在本版本范围，仅支持元数据提取
+- 期刊分区为基于影响因子范围的估计值，非 JCR 官方分区数据
+- 暂不支持文献间引用关系网络的构建与可视化
+- Windows 平台以外暂未提供官方构建
+
+---
+
+## 下版本计划
+
+- PDF 内高亮与标注功能（曾在 v1.2 中开发，v1.4 后重新实现）
+- 文献间引用关系图
+- 更丰富的自定义笔记模板系统
+- 文献分组视图增强（支持自定义列与排序）
+
+欢迎通过 GitHub Issues 反馈使用中遇到的问题，或提出你期待的新功能。
+
+---
+
+*ScholarFlow v1.4.0 · 2026-06-14*

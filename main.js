@@ -14,23 +14,14 @@ const store = new Store();
 // 强制设置应用语言为简体中文
 app.commandLine.appendSwitch('lang', 'zh-CN');
 
-// 安全：打包后隐藏开发者工具和重新加载菜单
-const viewSubmenu = [];
-if (!app.isPackaged) {
-  viewSubmenu.push(
-    { label: '重新加载', accelerator: 'CmdOrCtrl+R', role: 'reload' },
-    { label: '强制重新加载', accelerator: 'Shift+CmdOrCtrl+R', role: 'forceReload' },
-    { label: '开发者工具', accelerator: 'F12', role: 'toggleDevTools' },
-    { type: 'separator' }
-  );
-}
-viewSubmenu.push(
+// 视图菜单（已移除开发者工具与刷新项）
+const viewSubmenu = [
   { label: '实际大小', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
   { label: '放大', accelerator: 'CmdOrCtrl+Plus', role: 'zoomIn' },
   { label: '缩小', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
   { type: 'separator' },
   { label: '全屏', accelerator: 'F11', role: 'togglefullscreen' }
-);
+];
 
 // 定义中文菜单模板
 const template = [
@@ -108,9 +99,37 @@ function createWindow() {
       preload: path.join(__dirname, 'src/preload.js'),
       contextIsolation: true,  // 安全隔离
       nodeIntegration: false,  // 禁用渲染进程Node.js集成
+      devTools: false,         // 禁用开发者工具
       webviewTag: true         // 启用 webview 标签（用于 PDF 查看）
     },
     icon: path.join(__dirname, 'src/assets/app.ico') // 窗口图标
+  });
+
+  // 安全：拦截 F12 / Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+R 等开发者与刷新快捷键
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const ctrlOrMeta = input.control || input.meta;
+    const altKey = input.alt;
+    const key = (input.key || '').toLowerCase();
+    const code = input.code || '';
+    // 阻止开发者工具相关快捷键
+    if (code === 'F12') {
+      event.preventDefault();
+      return;
+    }
+    if (ctrlOrMeta && input.shift && (key === 'i' || key === 'j' || key === 'c')) {
+      event.preventDefault();
+      return;
+    }
+    // 阻止刷新快捷键
+    if ((ctrlOrMeta && key === 'r') || code === 'F5' || (ctrlOrMeta && altKey && key === 'r') || (ctrlOrMeta && input.shift && key === 'r')) {
+      event.preventDefault();
+      return;
+    }
+    // 阻止查看源代码
+    if (ctrlOrMeta && key === 'u') {
+      event.preventDefault();
+      return;
+    }
   });
 
   // 安全修复 [ELEC-001]: 拦截 window.open 调用，防止创建不受控的新窗口
@@ -274,18 +293,37 @@ function initAutoUpdater() {
     });
   });
 
-  // 启动检查（延迟3秒确保窗口就绪）
+  // 启动检查（延迟 3 秒确保窗口就绪）—— 支持 GitHub 失败自动回退镜像源
   setTimeout(() => {
-    autoUpdater.checkForUpdates().catch((e) => {
-      console.error('[AutoUpdate] 检查更新失败:', e.message);
-      sendUpdaterStatus('error', { message: e.message, code: 'CHECK_FAILED' });
+    autoUpdater.checkForUpdates().then((info) => {
+      console.log('[AutoUpdate] GitHub 检查完成:', info ? info.updateInfo?.version : '无更新');
+    }).catch((e) => {
+      console.error('[AutoUpdate] GitHub 检查失败:', e.message);
+      // 关键修复：GitHub 不通时自动切换到镜像源重试
+      const currentSource = getUpdateSourceConfig().source;
+      if (currentSource === 'github') {
+        switchToMirrorAndRetry().then((result) => {
+          if (!result.found && result.error) {
+            sendUpdaterStatus('error', {
+              message: '无法连接到更新服务器，请检查网络或稍后重试。当前已尝试 GitHub 官方源与镜像加速源。',
+              code: 'ALL_SOURCES_FAILED'
+            });
+          }
+        });
+      } else {
+        sendUpdaterStatus('error', { message: e.message, code: 'CHECK_FAILED' });
+      }
     });
   }, 3000);
 
-  // 安全修复 [SEC-010]: 保存定时器引用以便后续清理
+  // 定期检查（30 分钟）—— 同样支持 GitHub 失败时切换到镜像源
   updateCheckIntervalId = setInterval(() => {
     autoUpdater.checkForUpdates().catch((e) => {
       console.error('[AutoUpdate] 定期检查更新失败:', e.message);
+      const currentSource = getUpdateSourceConfig().source;
+      if (currentSource === 'github') {
+        switchToMirrorAndRetry();
+      }
     });
   }, 30 * 60 * 1000);
 }
@@ -358,123 +396,94 @@ ipcMain.handle('updater:setSource', async (_event, source) => {
 });
 
 /**
- * 通过镜像服务获取最新 release tag
- * 避免直接访问 GitHub API，解决大陆网络问题
- * @returns {Promise<string|null>}
- */
-function fetchLatestReleaseTag() {
-  return new Promise((resolve, reject) => {
-    // 使用镜像服务访问 GitHub releases 页面，解析 HTML 获取最新版本
-    // 或者尝试直接获取 latest.yml 从已知的版本列表
-    const possibleVersions = ['v1.2.0', 'v1.1.0', 'v1.0.0'];
-    const mirrorBaseUrl = 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download';
-
-    // 尝试从镜像获取 latest.yml，从最新版本开始尝试
-    tryVersion(mirrorBaseUrl, possibleVersions, 0, resolve, reject);
-  });
-}
-
-/**
- * 递归尝试获取版本
- */
-function tryVersion(baseUrl, versions, index, resolve, reject) {
-  if (index >= versions.length) {
-    reject(new Error('All version checks failed'));
-    return;
-  }
-
-  const version = versions[index];
-  const url = `${baseUrl}/${version}/latest.yml`;
-
-  const req = https.get(url, { timeout: 10000 }, (res) => {
-    if (res.statusCode === 200) {
-      // 找到了，返回这个版本号
-      resolve(version);
-    } else {
-      // 尝试下一个版本
-      tryVersion(baseUrl, versions, index + 1, resolve, reject);
-    }
-  });
-
-  req.on('error', () => {
-    // 尝试下一个版本
-    tryVersion(baseUrl, versions, index + 1, resolve, reject);
-  });
-
-  req.on('timeout', () => {
-    req.destroy();
-    tryVersion(baseUrl, versions, index + 1, resolve, reject);
-  });
-}
-
-/**
- * 配置 autoUpdater 的更新源
+ * 配置 autoUpdater 的更新源（修复 v1.3.2+）
+ * 
+ * 核心设计（经过网络测试验证）：
+ *   GitHub 直连  → 超时（无科学上网环境）
+ *   API 路由镜像 → 403 Forbidden（被代理拒绝）
+ *   页面 HTML  → 403 Forbidden（被代理拒绝）
+ *   文件下载路由 → ✅ 正常工作！
+ * 
+ * 因此镜像源使用 GitHub 的 /releases/latest/download/ 作为静态 feed URL，
+ * 由 GitHub 的 302 重定向自动指向最新 tag，无需先获取 tag。
+ * 
+ * @returns {Promise<void>}
  */
 async function configureAutoUpdaterSource() {
   const { source } = getUpdateSourceConfig();
 
   if (source === 'github') {
-    // 使用默认的 GitHub 配置（从 app-update.yml 读取）
     autoUpdater.setFeedURL({
       provider: 'github',
       owner: 'rdereq',
       repo: 'ScholarFlow'
     });
-    console.log('[AutoUpdate] 使用 GitHub 更新源');
+    console.log('[AutoUpdate] 使用 GitHub 官方更新源');
   } else if (source === 'mirror') {
-    // 使用镜像源：先获取最新 tag，再拼接完整 URL
-    try {
-      const tag = await fetchLatestReleaseTag();
-      if (tag) {
-        const mirrorUrl = 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/download/' + tag;
-        autoUpdater.setFeedURL({
-          provider: 'generic',
-          url: mirrorUrl
-        });
-        console.log('[AutoUpdate] 使用 GitHub 镜像更新源, tag:', tag);
-      } else {
-        console.log('[AutoUpdate] 未找到发布版本，回退到 GitHub 源');
-        autoUpdater.setFeedURL({
-          provider: 'github',
-          owner: 'rdereq',
-          repo: 'ScholarFlow'
-        });
-      }
-    } catch (e) {
-      console.error('[AutoUpdate] 获取最新版本失败，回退到 GitHub 源:', e.message);
-      autoUpdater.setFeedURL({
-        provider: 'github',
-        owner: 'rdereq',
-        repo: 'ScholarFlow'
-      });
-    }
+    // 关键修复：使用静态 feed URL，GitHub 的 /releases/latest/download/ 
+    // 会 302 重定向到最新 tag 的下载路径，无需额外 API 调用
+    const mirrorFeedUrl = 'https://gh-proxy.com/https://github.com/rdereq/ScholarFlow/releases/latest/download';
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: mirrorFeedUrl,
+      useMultipleRangeRequest: false,
+      channel: 'latest'
+    });
+    console.log('[AutoUpdate] 使用 GitHub 镜像更新源:', mirrorFeedUrl);
   }
 }
 
-// 比较版本号，判断是否有新版本
+/**
+ * 首次检查更新失败时，自动切换到镜像源并重试（修复 v1.3.2+）
+ * 解决：未科学上网时 GitHub 不通，自动尝试镜像加速源
+ * 
+ * @returns {Promise<{swapped: boolean, found: boolean, error?: string}>}
+ */
+async function switchToMirrorAndRetry() {
+  try {
+    console.log('[AutoUpdate] GitHub 直连失败，切换到镜像加速源...');
+    setUpdateSourceConfig('mirror');
+    await configureAutoUpdaterSource();
+
+    const result = await autoUpdater.checkForUpdates();
+    if (result && result.updateInfo && result.updateInfo.version) {
+      if (isNewerVersion(app.getVersion(), result.updateInfo.version)) {
+        console.log('[AutoUpdate] 镜像源发现新版本:', result.updateInfo.version);
+        return { swapped: true, found: true };
+      }
+    }
+    console.log('[AutoUpdate] 镜像源检查完成，已是最新版本');
+    return { swapped: true, found: false };
+  } catch (e) {
+    console.error('[AutoUpdate] 镜像源也失败:', e.message);
+    return { swapped: true, found: false, error: e.message };
+  }
+}
+
+/**
+ * 比较版本号，判断是否有新版本（修复 v1.3.2+）
+ * 旧实现：只逐位比较 latest > current，不处理 latest < current 的反向情况
+ * 新实现：逐位比较，发现 latest 小于 current 时立即返回 false
+ */
 function isNewerVersion(current, latest) {
   const parseVersion = (v) => {
-    // 移除 'v' 前缀
     const versionStr = String(v).replace(/^v/, '');
-    // 解析为数字数组 [major, minor, patch]
-    const parts = versionStr.split('.').map(p => parseInt(p, 10) || 0);
-    return parts;
+    return versionStr.split('.').map(p => parseInt(p, 10) || 0);
   };
 
   const currentParts = parseVersion(current);
   const latestParts = parseVersion(latest);
 
-  // 比较主版本
-  if (latestParts[0] > (currentParts[0] || 0)) return true;
-  // 比较次版本
-  if (latestParts[1] > (currentParts[1] || 0)) return true;
-  // 比较补丁版本
-  if (latestParts[2] > (currentParts[2] || 0)) return true;
-
-  return false;
+  for (let i = 0; i < 3; i++) {
+    const cur = currentParts[i] || 0;
+    const lat = latestParts[i] || 0;
+    if (lat > cur) return true;   // latest 更大 → 有新版本
+    if (lat < cur) return false;  // latest 更小 → 不是新版本
+  }
+  return false;  // 相等
 }
 
-// IPC: 手动触发检查更新
+// IPC: 手动触发检查更新（修复 v1.3.2+ — 支持 GitHub 失败自动回退镜像）
 ipcMain.handle('updater:checkNow', async () => {
   if (!app.isPackaged) return { status: 'dev_mode' };
   // 检查 app-update.yml 是否存在
@@ -485,10 +494,41 @@ ipcMain.handle('updater:checkNow', async () => {
   try {
     // 重新配置更新源（用户可能更改了设置）
     await configureAutoUpdaterSource();
-    
-    const result = await autoUpdater.checkForUpdates();
+
     const currentVersion = app.getVersion();
-    const latestVersion = result.updateInfo?.version;
+
+    // 1) 先尝试当前配置的更新源
+    let latestVersion = null;
+    let sourceUsed = getUpdateSourceConfig().source;
+
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      latestVersion = result.updateInfo?.version;
+    } catch (primaryErr) {
+      // 2) 如果 GitHub 源失败，自动切换到镜像源重试
+      if (sourceUsed === 'github') {
+        console.log('[AutoUpdate] GitHub 失败，切换镜像源重试...');
+        try {
+          setUpdateSourceConfig('mirror');
+          await configureAutoUpdaterSource();
+          const result2 = await autoUpdater.checkForUpdates();
+          latestVersion = result2.updateInfo?.version;
+          sourceUsed = 'mirror';
+          console.log('[AutoUpdate] 镜像源成功，版本:', latestVersion);
+        } catch (mirrorErr) {
+          console.error('[AutoUpdate] 镜像源也失败:', mirrorErr.message);
+          // 3) 两个源都失败，恢复为 github 配置，下一次再尝试
+          setUpdateSourceConfig('github');
+          return {
+            status: 'error',
+            message: '无法连接到更新服务器，请检查网络或稍后重试。已尝试 GitHub 官方源与镜像加速源。',
+            code: 'ALL_SOURCES_FAILED'
+          };
+        }
+      } else {
+        throw primaryErr;
+      }
+    }
 
     // 比较版本，确认是否有真正的新版本
     if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
@@ -666,24 +706,63 @@ app.on('before-quit', () => {
 });
 
 // 安全修复 [SEC-002]: IPC 通道添加 key 白名单验证，防止任意存储读写
+// - 精确 key：白名单内
+// - 前缀 key：scholarflow_data_* 用户隔离数据，scholarflow_user_* 单用户记录
 const ALLOWED_STORE_KEYS = new Set(['scholarflow_data', 'scholarflow_lang', 'scholarflow_users', 'scholarflow_currentUser']);
+const ALLOWED_STORE_PREFIXES = ['scholarflow_data_', 'scholarflow_user_'];
+
+function _isAllowedStoreKey(key) {
+  if (typeof key !== 'string' || key.length === 0 || key.length > 200) return false;
+  if (ALLOWED_STORE_KEYS.has(key)) return true;
+  for (const prefix of ALLOWED_STORE_PREFIXES) {
+    if (key.indexOf(prefix) === 0) return true;
+  }
+  return false;
+}
 
 ipcMain.handle('store:get', (_, key) => {
-  if (typeof key !== 'string' || !ALLOWED_STORE_KEYS.has(key)) return undefined;
-  return store.get(key);
+  if (!_isAllowedStoreKey(key)) {
+    console.warn('[IPC] store:get refused for key:', key);
+    return undefined;
+  }
+  const value = store.get(key);
+  console.log(`[IPC] store:get key=${key}, size=${typeof value === 'string' ? value.length : 'N/A'}`);
+  return value;
 });
 
 ipcMain.handle('store:set', (_, key, value) => {
-  if (typeof key !== 'string' || !ALLOWED_STORE_KEYS.has(key)) return;
-  if (typeof value !== 'string') return;
+  if (!_isAllowedStoreKey(key)) {
+    console.warn('[IPC] store:set refused for key:', key);
+    return;
+  }
+  if (typeof value !== 'string') {
+    console.warn('[IPC] store:set refused — value is not a string, type:', typeof value);
+    return;
+  }
   // 防止存储过大数据导致性能问题
-  if (value.length > 50 * 1024 * 1024) return;
-  store.set(key, value);
+  if (value.length > 50 * 1024 * 1024) {
+    console.warn('[Store] Value exceeds 50MB limit, refusing to store');
+    return;
+  }
+  try {
+    store.set(key, value);
+    console.log(`[IPC] store:set ✓ key=${key}, size=${Math.round(value.length / 1024)}KB`);
+  } catch (err) {
+    console.error('[IPC] store:set failed for key ' + key + ':', err);
+  }
 });
 
 ipcMain.handle('store:delete', (_, key) => {
-  if (typeof key !== 'string' || !ALLOWED_STORE_KEYS.has(key)) return;
-  store.delete(key);
+  if (!_isAllowedStoreKey(key)) {
+    console.warn('[IPC] store:delete refused for key:', key);
+    return;
+  }
+  try {
+    store.delete(key);
+    console.log('[IPC] store:delete ✓ key=' + key);
+  } catch (err) {
+    console.error('[IPC] store:delete failed for key ' + key + ':', err);
+  }
 });
 
 // ============================================================
@@ -860,6 +939,116 @@ ipcMain.handle('dialog:selectFile', (_, filters) => {
     }
     return null;
   });
+});
+
+// 多文件选择（支持同时选多个文件，用于批量导入）
+ipcMain.handle('dialog:selectMultiFile', (_, filters) => {
+  let safeFilters = [];
+  if (Array.isArray(filters)) {
+    safeFilters = filters.filter(f =>
+      f && typeof f === 'object' &&
+      typeof f.name === 'string' && f.name.length <= 100 &&
+      Array.isArray(f.extensions) && f.extensions.every(ext => typeof ext === 'string' && ext.length <= 20)
+    );
+  }
+  return dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    filters: safeFilters
+  }).then(result => {
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths;
+    }
+    return [];
+  });
+});
+
+// 文件夹选择（用于批量导入 PDF 文件夹）
+ipcMain.handle('dialog:selectFolder', () => {
+  return dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  }).then(result => {
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0];
+    }
+    return null;
+  });
+});
+
+// 列出文件夹内的 PDF 文件
+ipcMain.handle('file:listPDFs', (_, folderPath) => {
+  try {
+    if (!folderPath || typeof folderPath !== 'string') return [];
+    const fsMod = require('fs');
+    const pathMod = require('path');
+    if (!fsMod.existsSync(folderPath)) return [];
+    const files = fsMod.readdirSync(folderPath);
+    const pdfFiles = files
+      .filter(f => /\.pdf$/i.test(f))
+      .map(f => pathMod.join(folderPath, f))
+      .filter(fp => {
+        try { return fsMod.statSync(fp).isFile(); } catch (e) { return false; }
+      });
+    return pdfFiles;
+  } catch (e) {
+    console.error('[file:listPDFs] error:', e.message);
+    return [];
+  }
+});
+
+// 读取文件内容为 base64（用于在渲染进程用 pdf.js 解析）
+// 限制：最大 50MB，防止大文件占用过多内存
+ipcMain.handle('file:readAsBase64', (_, filePath) => {
+  try {
+    if (!filePath || typeof filePath !== 'string') return null;
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(filePath)) return null;
+    const stat = fsMod.statSync(filePath);
+    if (!stat.isFile()) return null;
+    if (stat.size > 50 * 1024 * 1024) {
+      console.warn('[file:readAsBase64] file too large (>50MB):', filePath);
+      return null;
+    }
+    const buf = fsMod.readFileSync(filePath);
+    return {
+      base64: buf.toString('base64'),
+      fileName: filePath.split(/[\/\\]/).pop(),
+      size: buf.length
+    };
+  } catch (e) {
+    console.error('[file:readAsBase64] error:', e.message);
+    return null;
+  }
+});
+
+// 读取文本文件内容（用于 BibTeX / RIS / XML / CSV 等文本格式）
+ipcMain.handle('file:readAsText', (_, filePath) => {
+  try {
+    if (!filePath || typeof filePath !== 'string') return null;
+    const fsMod = require('fs');
+    if (!fsMod.existsSync(filePath)) return null;
+    const buf = fsMod.readFileSync(filePath);
+    // 尝试 UTF-8，必要时回退 GBK（针对中文知网导出）
+    let content;
+    try {
+      content = buf.toString('utf8');
+      if (content.indexOf('\ufffd') !== -1 && content.length > 0) {
+        // 含有替换字符，尝试 GBK 编码
+        const iconv = require('iconv-lite');
+        if (iconv && iconv.decode) {
+          try { content = iconv.decode(buf, 'gbk'); } catch (ee) { /* keep utf8 */ }
+        }
+      }
+    } catch (ee) {
+      content = buf.toString('utf8');
+    }
+    return {
+      content: content,
+      fileName: filePath.split(/[\/\\]/).pop()
+    };
+  } catch (e) {
+    console.error('[file:readAsText] error:', e.message);
+    return null;
+  }
 });
 
 // Module 3: Clipboard Operations — 使用顶层已引入的 clipboard

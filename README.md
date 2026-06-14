@@ -1,289 +1,209 @@
-# <div align="center">📚 ScholarFlow</div>
+# ScholarFlow 学术文献管理与引用生成
 
-<div align="center">
+> 一站式研究阅读工具 · 管理你的文献、笔记、阅读进度，自动生成规范引用
 
-  <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=flat-square" />
-  <img src="https://img.shields.io/badge/Version-1.3.1-4F46E5?style=flat-square" />
-  <a href="https://github.com/rdereq/ScholarFlow/releases"><img src="https://img.shields.io/github/v/release/rdereq/ScholarFlow?style=flat-square&color=10B981" /></a>
-  <a href="https://github.com/rdereq/ScholarFlow/blob/main/LICENSE"><img src="https://img.shields.io/github/license/rdereq/ScholarFlow?style=flat-square&color=F59E0B" /></a>
+ScholarFlow 是一款跨平台的桌面学术文献管理软件，专为研究人员和学生设计。
 
-  <h3>学术文献管理与引用生成 — 一站式研究阅读工具</h3>
-
-  <p align="center">
-    <a href="#-核心功能">核心功能</a> ·
-    <a href="#-下载安装">下载安装</a> ·
-    <a href="#-快速上手指南">快速上手</a> ·
-    <a href="#-支持的引用格式">引用格式</a> ·
-    <a href="#-批量导出">批量导出</a> ·
-    <a href="#-技术栈">技术栈</a>
-  </p>
-</div>
+最新版本 v1.4.0 · 2026-06-14 · Windows x64
 
 ---
 
-## 🎯 项目简介
+## 核心功能
 
-**ScholarFlow** 是一款跨平台的桌面学术文献管理软件，专为研究人员和学生设计。从文献录入、PDF 阅读、笔记撰写，到一键生成规范引用、批量导出参考文献，ScholarFlow 覆盖学术研究的完整工作流。
+### 文献管理
 
-本仓库为 **Windows 版本** (`ScholarFlow-Win/`)，所有数据存储在本地，无需账号、不上传云端。
+- DOI 自动获取元数据：输入 DOI 后，系统并行查询 CrossRef、OpenAlex、Semantic Scholar 等数据源，自动填充标题、作者、期刊、年份、摘要等信息
+- 多格式录入：支持 DOI、BibTeX 粘贴、文本块、手动录入等多种方式
+- 中文文献支持：可自动识别中文期刊 DOI，并启用 CNKI 数据源，获取更精准的中文元数据
+- 完整元数据：标题、作者、期刊、年份、卷期、页数、文章号、DOI、影响因子、分区预估
+- 组织分类：文件夹分组、标签系统、优先级管理、截止日期、阅读状态
+- 全文搜索：按标题、作者、标签快速检索文献
+- 重复检测：新增文献时自动比对已存在文献，相同 DOI 或相似文献会提醒确认
 
-> **最新版本 v1.3.1**：引用格式系统全面重构 — **6 种主流学术引用格式** 按官方规范实现，支持连字符名、多中间名、Early Access、文章号等高级场景。[查看更新日志 →](CHANGELOG.md)
+### PDF 阅读与笔记
 
----
+- 内置 PDF 阅读器，支持缩放、跳转、目录浏览
+- Markdown 笔记，自动关联所属文献
+- 多套预设笔记模板：创新点摘要、方法论、批判性分析、文献综述等
+- 阅读计时器，记录每篇文献的阅读时长
+- 每篇文献可关联多条笔记，按标签分类
 
-## ✨ 核心功能
+### 引用生成
 
-### 📖 文献管理
+ScholarFlow 可根据每篇文献的元数据，按 6 种主流学术引用格式一键生成规范引用：
 
-| 功能 | 说明 |
-|------|------|
-| **多方式录入** | DOI 自动获取元数据 · BibTeX 粘贴导入 · 手动录入 |
-| **完整元数据** | 标题 · 作者 · 年份 · 期刊 / 出版社 · 卷 · 期 · 页码 · 文章号 · DOI |
-| **组织分类** | 文件夹 (Folders) · 标签系统 (Tags) · 优先级 (高/中/低) · 截止日期 |
-| **全文搜索** | 按标题、作者、标签快速检索 |
+- APA 第 7 版：心理学、教育学、社会科学领域通用
+- MLA 第 9 版：文学、语言学、人文科学
+- Chicago 作者-日期：社会科学、自然科学
+- Chicago 注释-书目：历史、人文
+- GB/T 7714-2015：中国国家标准，中英文自动切换
+- IEEE：工程、计算机科学领域
 
-### 📝 PDF 阅读与笔记
+高级特性包括：连字符名和多中间名的正确缩写、Early Access 文献识别、文章号格式支持、月份缩写规范、DOI 链接规范化、作者截断规则、中文作者名称保留。
 
-| 功能 | 说明 |
-|------|------|
-| **内置 PDF 阅读器** | 基于 pdf.js，支持缩放、跳转、目录浏览 |
-| **Markdown 笔记** | 支持 Markdown 语法，自动关联所属文献 |
-| **笔记模板** | 创新点 · 方法论 · 批判性分析 · 文献综述 等预设模板 |
-| **阅读计时器** | 记录每篇文献的阅读时长，培养专注阅读习惯 |
-| **多笔记管理** | 每篇文献可关联多条笔记，按标签分类 |
+### 批量导出
 
-### 📋 引用生成 (v1.3.1 全面升级)
+选择多篇文献后，可导出为以下 4 种格式之一：
 
-ScholarFlow 的核心功能 — 根据每篇文献的元数据，按 6 种主流学术引用格式**一键生成规范引用**。
+- 纯文本：每行一条引用，适合直接粘贴到 Word
+- Markdown：有序或无序列表，适合 GitHub、Notion 等平台
+- Word HTML：可在 Microsoft Word 或 WPS 中直接打开的富文本文档
+- BibTeX：LaTeX 编辑器、Overleaf、Zotero、JabRef 等工具通用的引用库格式
 
-> 所有格式均依据官方规范：**APA 7th / MLA 9th / Chicago 17 / GB/T 7714-2015 / IEEE**
+### 期刊指标自动填充
 
-#### 支持的 6 种引用格式
+- 每篇文献自动根据期刊名称查询 OpenAlex 的期刊元数据
+- 自动填充影响因子和分区预估
+- 信息显示在文献详情页的期刊信息区域
 
-| 格式 | 适用学科 | 输出示例 |
-|------|---------|---------|
-| **APA 7th** | 心理学 · 教育学 · 社科 | Smith, J., Brown, A., & Lee, C. (2024). Deep learning for natural language processing. Nature Machine Intelligence, 6(3), 245–258. https://doi.org/10.1038/s42256-024-00001 |
-| **MLA 9th** | 文学 · 语言学 · 人文 | Smith, John, Alice Brown, and Charlie Lee. "Deep Learning for Natural Language Processing." Nature Machine Intelligence, vol. 6, no. 3, Mar. 2024, pp. 245–258. https://doi.org/10.1038/s42256-024-00001 |
-| **Chicago Author-Date** | 社科 · 自然科学 | Smith, John, Alice Brown, and Charlie Lee. 2024. "Deep Learning for Natural Language Processing." Nature Machine Intelligence 6, no. 3 (March): 245–258. https://doi.org/10.1038/s42256-024-00001 |
-| **Chicago Notes & Bibliography** | 历史 · 人文 | Smith, John, Alice Brown, and Charlie Lee. "Deep Learning for Natural Language Processing." Nature Machine Intelligence 6, no. 3 (March 2024): 245–258. https://doi.org/10.1038/s42256-024-00001 |
-| **GB/T 7714-2015** | 中文学术 | SMITH J, BROWN A, LEE C. Deep learning for natural language processing[J]. Nature Machine Intelligence, 2024, 6(3): 245-258. https://doi.org/10.1038/s42256-024-00001 |
-| **IEEE** | 工程 · 计算机科学 | [1] J. Smith, A. Brown, and C. Lee, "Deep learning for natural language processing," Nature Machine Intelligence, vol. 6, no. 3, pp. 245–258, Mar. 2024. doi: 10.1038/s42256-024-00001 |
+### 数据分析
 
-#### 高级特性
+- 阅读总时长统计
+- 文献数量概览
+- 笔记总数统计
+- 研究领域分布：根据文献标签可视化你的研究主题
+- 阅读热力图：展示阅读习惯和节奏
 
-- **连字符名支持**：`Bohm-Jung Yang` → `B.-J. Yang` (IEEE) / `Yang, B.-J.` (APA)
-- **多中间名支持**：`Mohammad Saeed Bahramy` → `M. S. Bahramy`
-- **Early Access 识别**：未分配卷期页码的论文自动标注 `Early Access`
-- **文章号支持**：Nature Communications 等期刊使用 `Art. no. 1524` 替代页码
-- **月份缩写**：自动转换数字月份为 `Feb.` / `March` 等格式
-- **DOI URL 规范化**：纯 DOI `10.xxx/yyy` 自动补全为 `https://doi.org/10.xxx/yyy`
-- **作者截断规则**：APA ≤20 全列 / ≥21 首 19+省略号+末位 · MLA >3 位用 `et al.` · GB/T >3 位列前 3 位+等
-- **中文作者格式**：GB/T 保留中文全名；APA/MLA/IEEE 保持原样不做大写
+### 其他亮点
 
-### 📤 批量导出
-
-支持 **4 种文件格式**将选中文献或整个书库导出为参考文献列表：
-
-| 格式 | 扩展名 | 用途 |
-|------|--------|------|
-| **纯文本 TXT** | `.txt` | 粘贴到 Word、邮件等任意编辑器 |
-| **Markdown** | `.md` | 放入 Notion、GitHub、GitBook 等支持 Markdown 的平台 |
-| **Word HTML** | `.doc.html` | Microsoft Word / WPS 可直接打开的富文本 |
-| **BibTeX** | `.bib` | LaTeX、Overleaf、Zotero、JabRef 等工具通用引用库格式 |
-
-在文献详情页 / 文献库中，**Ctrl+点击多选** → 右键 "导出参考文献" → 选择格式即可。
-
-### 🎨 自定义引用模板
-
-除 6 种内置格式外，ScholarFlow 支持**自定义引用模板**（设置 → 引用 → 自定义格式）：
-
-- 支持占位符：`{author}` `{year}` `{title}` `{journal}` `{volume}` `{issue}` `{pages}` `{doi}` `{publisher}`
-- 支持斜体标记：`*{journal}*` → *Journal Name*
-- 模板可编辑、删除、设为默认
-- 重启后自动恢复，与文献数据一起存储
-
-### 📊 数据分析仪表盘
-
-- **阅读总时长**：累计阅读分钟数
-- **文献数量**：已录入文献统计
-- **笔记统计**：累计笔记条数
-- **活动热力图**：直观展示阅读节奏
-- **阅读进度**：可视化各文献的阅读状态
-
-### 🌐 其他亮点
-
-- **双语界面**：English / 简体中文一键切换，无需重启
-- **深/浅色主题**：支持两种外观模式
-- **多用户隔离**：支持不同用户独立数据存储
-- **完整备份/恢复**：一键 JSON 导出导入
-- **自动更新**：启动时检查 GitHub Release，发现新版本自动下载提示升级
+- 双语界面：英文和简体中文自由切换，无需重启
+- 深色和浅色主题：两种外观模式
+- 多用户隔离：支持不同用户独立数据存储
+- 完整备份与恢复：一键 JSON 导出导入
+- 自动更新：启动时检查 GitHub Release，发现新版本自动下载并提示升级
+- 开发者模式禁用：生产环境屏蔽调试工具，保护应用完整性
 
 ---
 
-## 📦 下载安装
+## 下载与安装
 
-### Windows 用户（推荐）
+前往 GitHub Releases 页面下载最新版本安装程序。
 
-前往 [GitHub Releases](https://github.com/rdereq/ScholarFlow/releases) 下载最新版本安装程序：
+最新版本文件名为 ScholarFlow-1.4.0-Setup.exe（约 77 MB）。
 
-```
-📄 ScholarFlow-1.3.1-Setup.exe  ← 双击安装
-```
+安装步骤：
+1. 下载安装程序
+2. 双击运行安装程序
+3. 按安装向导完成安装
+4. 从开始菜单或桌面快捷方式启动应用
 
-首次启动后，**应用将自动检查后续更新**，发现新版本时一键升级即可。
+首次启动后，应用会自动检查后续更新，发现新版本时会给出一键升级提示。
+
+系统要求：
+- 操作系统：Windows 10 或 Windows 11（64 位）
+- 内存：建议 4 GB 或更高
+- 存储：至少 500 MB 可用空间
 
 ---
 
-## 🚀 快速上手指南
+## 快速开始
 
-### 1️⃣ 录入第一篇文献
+### 录入第一篇文献
 
-| 步骤 | 操作 |
-|------|------|
-| 1 | 左侧导航栏点击 **文献库** → 点击顶部 **+** 按钮 |
-| 2 | 在对话框 **DOI 栏** 输入 `10.1038/s42256-024-00001` → 点击 "获取" |
-| 3 | 系统自动填充标题、作者、期刊、年份等信息 |
-| 4 | 点击 **保存** — 你的第一篇文献已入库 ✓ |
+1. 左侧导航栏点击文献库
+2. 点击顶部添加按钮
+3. 在对话框的 DOI 输入栏中粘贴 DOI，点击获取
+4. 系统自动从多源查询并填充标题、作者、期刊、年份等信息
+5. 也可以选择手动填写、粘贴 BibTeX 或导入文本块
+6. 点击保存完成
 
-> 也可选择 **手动填写**、**粘贴 BibTeX** 或 **导入 PDF** 自动识别。
+### 阅读与笔记
 
-### 2️⃣ 阅读与笔记
-
-1. 点击任意文献卡片 → 进入文献详情页
-2. 点击 **📄 打开 PDF** → 内置阅读器打开
-3. 点击 **📝 添加笔记** → 选择模板（如"创新点摘要"）→ 开始编写
+1. 点击任意文献卡片进入文献详情页
+2. 点击打开 PDF 使用内置阅读器查看
+3. 点击添加笔记，选择模板（如创新点摘要）
 4. 笔记自动关联到当前文献，可在文献详情页查看
+5. 阅读完成后，可标记阅读状态（待读、在读、已读等）
 
-### 3️⃣ 生成引用
+### 生成引用
 
-**单条引用**（文献详情页）：
-- 点击 **📋 复制引用** → 即复制当前格式的引用到剪贴板
+单条引用：在文献详情页点击复制引用按钮，即复制当前格式的引用到剪贴板
 
-**批量引用**（文献库页面）：
-1. **Ctrl+点击** 选择多篇文献
-2. 顶部导航栏 → **📤 导出全部**（或右键 → 导出参考文献列表）
-3. 选择格式（如 APA 7th）→ 选择导出方式（TXT/MD/Word/BibTeX）→ 保存文件
+批量引用：在文献库页面，按住 Ctrl 点击选择多篇文献，然后点击顶栏导出全部按钮，选择引用格式和导出方式，最后保存文件
 
-### 4️⃣ 设置默认引用格式
-
-进入 **设置** → **引用**，在"当前格式"下拉中选择你最常用的格式（如 APA 7th）。
-后续所有 "复制引用" / "导出" 都会默认使用此格式。
+可在设置页的引用选项卡中，设置你默认使用的引用格式。
 
 ---
 
-## 🛠 开发者指南
+## 版本说明
 
-### 从源码运行
+当前版本 v1.4.0 是 ScholarFlow 发布以来最重要的架构更新版本，主要变更包括：
 
-```bash
-# 克隆仓库
-git clone https://github.com/rdereq/ScholarFlow.git
-cd ScholarFlow/ScholarFlow-Win
+- 统一的 DOI 查询共享模块，消除了单篇查询和批量导入之间的行为不一致
+- 数据持久化缺陷修复：文献数据在应用重启后不再丢失
+- 中文 DOI 识别与 CNKI 格式文献支持
+- 期刊影响因子和分区自动填充
+- 批量 DOI 导入并发控制，速度较前版本提升
+- 请求重试机制，网络抖动时自动恢复
+- 重复文献检测
+- PDF 上传与拖放重构，更稳定的文件处理
+- 设置页面修复与增强，包括文件夹管理、数据备份导入提示
+- 开发者模式禁用，生产环境更安全
 
-# 安装依赖
-npm install
-
-# 启动 Electron 应用（开发模式）
-npm start
-```
-
-### 构建安装包
-
-```bash
-cd ScholarFlow-Win
-npm run build
-# → 输出: dist/ScholarFlow-1.3.1-Setup.exe
-```
-
-### 项目结构
-
-```
-ScholarFlow-Win/
-├── src/
-│   ├── index.html                # 主页面（单页应用）
-│   ├── main.js                   # Electron 主进程
-│   ├── preload.js                # 预加载脚本（IPC Bridge）
-│   ├── css/                      # 样式（Indigo 主题）
-│   └── js/
-│       ├── app.js                # 应用核心逻辑
-│       ├── data.js               # 数据层
-│       ├── crud.js               # CRUD 操作 & 状态管理
-│       ├── i18n.js               # 国际化 (EN / 中文)
-│       ├── updater.js            # 自动更新
-│       ├── pdf-viewer.js         # PDF 阅读器
-│       ├── citation/             # ⭐ 引用生成模块 (v1.3.1 核心)
-│       │   ├── citation-author.js      # 作者名解析 & 格式化
-│       │   ├── citation-formats.js     # 6 种引用格式实现
-│       │   ├── citation-engine.js      # 统一引擎 / 注册表
-│       │   ├── citation-export.js      # 4 种导出格式
-│       │   ├── citation-templates.js   # 自定义引用模板
-│       │   ├── citation-ui.js          # 引用对话框 & 面板 UI
-│       │   └── language-detect.js      # 中英文自动检测
-│       └── pages/                # 页面组件
-│           ├── dashboard.js      # 数据仪表盘
-│           ├── library.js        # 文献库
-│           ├── detail.js         # 文献详情
-│           ├── notes.js          # 笔记管理
-│           └── settings.js       # 设置面板
-├── package.json
-├── CHANGELOG.md                  # 版本更新日志
-└── README.md                     # 你正在看的这份文档
-```
-
-### 引用系统扩展
-
-如需新增一种引用格式（如 ACS 或 Vancouver），只需在 [citation-formats.js](src/js/citation/citation-formats.js) 中：
-
-1. 编写一个 `function formatYourFormat(item) → string`
-2. 注册到 `window.CitationFormats['Your Format'] = formatYourFormat`
-3. 自动出现在"设置 → 引用 → 当前格式"下拉中
+详细的版本变更请查看 CHANGELOG 文件。
 
 ---
 
-## 🔧 技术栈
+## 技术概览
 
-| 层级 | 技术 |
-|------|------|
-| **桌面框架** | [Electron](https://www.electronjs.org/) |
-| **前端** | 原生 HTML5 + CSS3 + 原生 JavaScript（无框架依赖） |
-| **存储** | [electron-store](https://github.com/sindresorhus/electron-store) (JSON 本地持久化) |
-| **PDF 渲染** | [pdf.js](https://mozilla.github.io/pdf.js/) |
-| **自动更新** | [electron-updater](https://www.electron.build/auto-update) |
-| **构建打包** | [electron-builder](https://www.electron.build/) |
-| **发布** | GitHub Releases |
+ScholarFlow 的技术栈保持轻量、透明、易于贡献：
 
----
-
-## 📝 更新日志
-
-详细的版本变更见 [CHANGELOG.md](CHANGELOG.md)，这里是最新一次重要更新：
-
-> **v1.3.1** — 2026-06-13
->
-> - ✅ **引用格式系统全面重构**：6 种主流学术引用格式按官方规范实现
-> - ✅ **作者解析引擎升级**：连字符名、多中间名、Family,Given 格式、中文/英文混合
-> - ✅ **批量导出增强**：TXT / Markdown / Word / BibTeX 四种格式
-> - ✅ **38 项单元测试全部通过**
-> - 🔧 修复 IEEE 双重编号、Early Access 识别、Art. no. 文章号支持
+- 桌面框架：Electron
+- 前端界面：原生 HTML5 + CSS3 + 原生 JavaScript（无框架依赖）
+- 本地数据存储：基于 JSON 的本地持久化方案
+- PDF 渲染：Mozilla pdf.js
+- 自动更新：electron-updater
+- 应用打包：electron-builder
+- 发布渠道：GitHub Releases
 
 ---
 
-## 🤝 贡献
+## 开发者信息
 
-欢迎提交 Issue 和 Pull Request！
+从源码运行：
 
-如果你在使用中发现某种期刊的引用格式不规范、或者期望新增某类格式（如 ACS、Vancouver、Nature 等），请附上示例元数据，我会优先处理。
+- 克隆仓库到本地
+- 在 ScholarFlow-Win 目录安装依赖
+- 在 ScholarFlow-Win 目录启动应用
+
+构建安装包：
+
+- 确保依赖已安装
+- 在 ScholarFlow-Win 目录执行构建命令
+- 构建产物位于 dist 目录
+
+国内用户如遇到 Electron 下载缓慢，可配置国内镜像加速。
+
+项目结构的主要模块：
+
+- 应用入口与窗口配置：main.js
+- 单页应用界面：index.html
+- 进程间通信：preload.js
+- 应用核心逻辑：src/js/app.js
+- 数据层与工具函数：src/js/data.js
+- 文献和笔记的创建、读取、更新、删除：src/js/crud.js
+- DOI 查询与期刊指标：src/js/doi-client.js
+- 多格式导入导出：src/js/import-export.js
+- 国际化文本：src/js/i18n.js
+- 自动更新 UI：src/js/updater.js
+- PDF 阅读器：src/js/pdf-viewer.js
+- 引用格式与引擎：src/js/citation 目录
+- 各页面组件：src/js/pages 目录
 
 ---
 
-## 📄 许可证
+## 贡献
 
-本项目采用 **MIT 许可证**，详见 [LICENSE](LICENSE)。
+欢迎提交 Issue 和 Pull Request。
+
+如果你在使用中发现某种期刊的引用格式不符合规范、或期望新增某类引用格式，请在 Issue 中附上示例文献元数据，我会优先处理。
 
 ---
 
-<div align="center">
+## 许可证
 
-### **ScholarFlow** — 让文献阅读更高效 · 让引用生成更简单
+本项目采用 MIT 许可证，详见 LICENSE 文件。
 
-</div>
+---
+
+ScholarFlow · 让文献阅读更高效 · 让引用生成更简单

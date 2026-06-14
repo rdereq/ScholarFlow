@@ -602,12 +602,31 @@ function handleExportAllCitations() {
   }
   if (!items.length) return;
 
-  var fmt = citationFormat || 'APA 7th';
-  var lines = window.Citation.generateList(items, fmt);
-
   // 读取导出格式
   var expSel = document.getElementById('citation-quick-export');
   var expType = expSel ? expSel.value : 'txt';
+
+  // 数据导出格式（非引用格式化的格式）直接使用 ImportExport 模块
+  var dataFormats = {
+    ris: { ext: 'ris', mime: 'application/x-research-info-systems' },
+    endnote: { ext: 'xml', mime: 'application/xml' },
+    csv: { ext: 'csv', mime: 'text/csv' },
+    json: { ext: 'json', mime: 'application/json' }
+  };
+  if (dataFormats[expType] && window.ImportExport) {
+    var result = window.ImportExport.exportByFormat(items, expType);
+    if (result && result.content) {
+      var fname = 'ScholarFlow_' + new Date().toISOString().split('T')[0] + '.' + (result.ext || dataFormats[expType].ext);
+      if (typeof window.downloadFile === 'function') {
+        window.downloadFile(fname, result.content, result.mime || dataFormats[expType].mime);
+      }
+      return;
+    }
+  }
+
+  // 引用导出格式（txt/md/doc/bib）使用原有 Citation 引擎
+  var fmt = citationFormat || 'APA 7th';
+  var lines = window.Citation.generateList(items, fmt);
 
   var text, filename, mime;
   if (expType === 'md') {

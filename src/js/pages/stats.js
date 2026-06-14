@@ -228,11 +228,24 @@ function renderFieldsChart() {
     removeChartResize('fields');
   }
 
-  // 统计标签数量
+  // 统计标签数量（同时聚合 tags 和 keywords，因为 DOI 批量导入将主题/概念字段存于 keywords）
   const tagCounts = {};
+  const seen = new Set(); // 防止单篇文献内同一词被重复计数
   appData.literature.forEach(l => {
+    seen.clear();
+    // 1. tags（用户手动分配的标签）
     (l.tags || []).forEach(t => {
-      tagCounts[t] = (tagCounts[t] || 0) + 1;
+      const name = String(t || '').trim();
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      tagCounts[name] = (tagCounts[name] || 0) + 1;
+    });
+    // 2. keywords（DOI 导入时填充的主题 / 学科 / 概念）
+    (l.keywords || []).forEach(k => {
+      const name = String(k || '').trim();
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      tagCounts[name] = (tagCounts[name] || 0) + 1;
     });
   });
 
